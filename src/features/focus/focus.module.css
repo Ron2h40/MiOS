@@ -1,0 +1,65 @@
+.screen {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: var(--space-5);
+  background: radial-gradient(circle at 50% 30%, var(--bg-elevated), var(--bg) 70%);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.center {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.title {
+  max-width: 760px;
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.timer {
+  font-size: clamp(48px, 10vw, 96px);
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+
+.guess {
+  color: var(--text-secondary);
+}
+
+.over {
+  color: var(--orange);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.bottom {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}

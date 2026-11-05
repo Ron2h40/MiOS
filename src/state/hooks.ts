@@ -1,0 +1,93 @@
+"use client";
+
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  evaluateGate,
+  findDeadlocks,
+  findStarved,
+  guessAccuracy,
+  modeLoad,
+  readyQueue,
+  stageEnteredAt,
+  STAGE_POLICY,
+  tasksInMode,
+  type ModeId,
+} from "@/core";
+import { useMios } from "./store";
+
+/**
+ * Read-side hooks. Components select raw slices from the store and derive
+ * views here with useMemo, so derived arrays stay stable between renders.
+ */
+
+/** False on the server and until localStorage has loaded, to avoid hydration mismatches. */
+export const useHydrated = (): boolean =>
+  useSyncExternalStore(
+    (cb) => useMios.persist.onFinishHydration(cb),
+    () => useMios.persist.hasHydrated(),
+    () => false,
+  );
+
+/** Current time, refreshed on an interval (for timers and "due soon"). */
+export const useNow = (intervalMs = 30_000): string => {
+  const [now, setNow] = useState(() => new Date().toISOString());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date().toISOString()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+};
+
+/** The single place any feature reads the assistant stage from. */
+export const useStage = () => {
+  const stage = useMios((s) => s.settings.stage);
+  return { stage, policy: STAGE_POLICY[stage] };
+};
+
+export const useModeTasks = (mode: ModeId) => {
+  const tasks = useMios((s) => s.tasks);
+  return useMemo(() => {
+    const inMode = tasksInMode(tasks, mode);
+    return {
+      all: inMode,
+      running: inMode.filter((t) => t.state === "running"),
+      ready: readyQueue(inMode),
+      blocked: inMode.filter((t) => t.state === "blocked"),
+      done: inMode
+        .filter((t) => t.state === "done")
+        .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")),
+    };
+  }, [tasks, mode]);
+};
+
+export const useDeadlocks = () => {
+  const tasks = useMios((s) => s.tasks);
+  return useMemo(() => findDeadlocks(tasks), [tasks]);
+};
+
+export const useStarved = (now: string) => {
+  const tasks = useMios((s) => s.tasks);
+  const starvationDays = useMios((s) => s.settings.starvationDays);
+  return useMemo(() => findStarved(tasks, { starvationDays }, now), [tasks, starvationDays, now]);
+};
+
+export const useModeLoad = (now: string) => {
+  const tasks = useMios((s) => s.tasks);
+  const est = useMios((s) => s.settings.defaultEstimateMinutes);
+  return useMemo(() => modeLoad(tasks, now, est), [tasks, now, est]);
+};
+
+export const useGuessAccuracy = () => {
+  const tasks = useMios((s) => s.tasks);
+  return useMemo(() => guessAccuracy(tasks), [tasks]);
+};
+
+export const useGate = (now: string) => {
+  const events = useMios((s) => s.events);
+  const stage = useMios((s) => s.settings.stage);
+  const startedAt = useMios((s) => s.startedAt);
+  return useMemo(() => {
+    const entered = stageEnteredAt(events, stage, startedAt);
+    return { entered, ...evaluateGate(events, stage, entered, now) };
+  }, [events, stage, startedAt, now]);
+};

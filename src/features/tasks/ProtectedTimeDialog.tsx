@@ -1,0 +1,42 @@
+"use client";
+
+import type { ProtectedConflict } from "@/core";
+import { formatTime } from "@/ui/format";
+import { Button, Dialog } from "@/ui/primitives";
+
+/** A6 — the referee asks before anything lands in protected time. */
+export function ProtectedTimeDialog({
+  conflicts,
+  onApprove,
+  onCancel,
+}: {
+  conflicts: ProtectedConflict[];
+  onApprove: () => void;
+  onCancel: () => void;
+}) {
+  const first = conflicts[0];
+  return (
+    <Dialog
+      open={conflicts.length > 0}
+      onClose={onCancel}
+      title="That's protected time"
+      actions={
+        <>
+          <Button variant="plain" onClick={onCancel}>
+            Pick another time
+          </Button>
+          <Button variant="danger" onClick={onApprove}>
+            Schedule anyway
+          </Button>
+        </>
+      }
+    >
+      {first && (
+        <p>
+          This slot overlaps <strong>{first.block.label}</strong> ({formatTime(first.start.toISOString())}–
+          {formatTime(first.end.toISOString())}). The referee keeps this time free unless you approve it.
+        </p>
+      )}
+    </Dialog>
+  );
+}
