@@ -160,11 +160,11 @@ export const evaluateGate = (
     signals.push(rateSignal("popupAnswers", "Pop-up questions answered", answered, p.length, g.minPopupAnswerRate));
   }
 
-  // Own choices that had a deadline. Tasks without a deadline can't be on or
-  // off time, so they don't count either way.
+  // Tasks with no deadline are their own type: they are
+  // neither on time nor late, so only deadline tasks feed this rate.
   const own = completed.filter((e) => e.ownChoice && e.onTime !== null);
   const onTime = own.filter((e) => e.onTime).length;
-  signals.push(rateSignal("onTime", "Your own choices finished on time", onTime, own.length, g.minOnTimeRate));
+  signals.push(rateSignal("onTime", "Your deadline tasks finished on time", onTime, own.length, g.minOnTimeRate));
 
   const days = Math.max(0, daysBetween(enteredAt, now));
   signals.push({

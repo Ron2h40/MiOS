@@ -41,7 +41,7 @@ src/
 │   ├── modes.ts       Mode registry + A8 cross-mode load ("glue")
 │   ├── stages.ts      Assistant stage policy + progress gate (auto stage-up)
 │   ├── events.ts      Metrics event log types
-│   └── __tests__/     28 unit tests
+│   └── __tests__/     30 unit tests
 ├── state/           Zustand store: wires core rules to persistence + event log
 │   ├── store.ts       All mutations; every user decision is logged as an event
 │   └── hooks.ts       Derived read-side hooks (useStage, useGate, useDeadlocks …)

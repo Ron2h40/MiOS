@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { previewInterrupt } from "../interrupts";
-import { moveInQueue, projectQueue, readyQueue } from "../scheduler";
+import { moveInQueue, projectQueue, readyQueue, splitByDeadline } from "../scheduler";
 import { makeTask, NOW } from "./fixtures";
 
 describe("scheduler (A2)", () => {
@@ -12,12 +12,27 @@ describe("scheduler (A2)", () => {
     expect(readyQueue([a, b, c, d], "priority-deadline").map((t) => t.title)).toEqual(["c", "d", "b", "a"]);
   });
 
-  it("keeps the user's manual order and only moves what they ask", () => {
+  it("moving a task swaps it with its neighbour and touches nothing else", () => {
     const [a, b, c] = [makeTask({ order: 1 }), makeTask({ order: 2 }), makeTask({ order: 3 })];
     const order = moveInQueue([a, b, c], c.id, "up");
-    expect(order.get(a.id)).toBe(1);
-    expect(order.get(c.id)).toBe(2);
-    expect(order.get(b.id)).toBe(3);
+    expect([...order]).toEqual([
+      [c.id, 2],
+      [b.id, 3],
+    ]);
+    expect(moveInQueue([a, b, c], a.id, "up").size).toBe(0);
+  });
+
+  it("moves within a section skip tasks from the other section", () => {
+    const timedA = makeTask({ order: 1, deadline: "2026-11-06T00:00:00.000Z" });
+    const open = makeTask({ order: 2 });
+    const timedB = makeTask({ order: 3, deadline: "2026-11-07T00:00:00.000Z" });
+    const { timed, untimed } = splitByDeadline([timedA, open, timedB]);
+    expect(timed.map((t) => t.id)).toEqual([timedA.id, timedB.id]);
+    expect(untimed.map((t) => t.id)).toEqual([open.id]);
+    const order = moveInQueue(timed, timedB.id, "up");
+    expect(order.get(timedB.id)).toBe(1);
+    expect(order.get(timedA.id)).toBe(3);
+    expect(order.has(open.id)).toBe(false);
   });
 
   it("projects finish times end to end and marks late tasks", () => {

@@ -11,7 +11,7 @@ import {
   nextOrder,
   ok,
   readyQueue,
-  renumber,
+  splitByDeadline,
   stageEnteredAt,
   startTask,
   transition,
@@ -280,7 +280,12 @@ export const useMios = create<MiosStore>()(
         },
 
         moveTask(id, direction, mode) {
-          applyOrder(moveInQueue(queueFor(mode), id, direction));
+          // Moves stay inside the task's own section (with or without a deadline).
+          const { timed, untimed } = splitByDeadline(queueFor(mode));
+          const section = timed.some((t) => t.id === id) ? timed : untimed;
+          const order = moveInQueue(section, id, direction);
+          if (!order.size) return;
+          applyOrder(order);
           pushEvents({ type: "decision_made", usedAi: false, feature: "order" });
         },
 
@@ -297,9 +302,9 @@ export const useMios = create<MiosStore>()(
 
         decideInterrupt(id, decision) {
           if (decision === "run_first") {
-            const all = readyQueue(get().tasks);
-            const task = all.find((t) => t.id === id);
-            if (task) applyOrder(renumber([task, ...all.filter((t) => t.id !== id)]));
+            // Put it ahead of every other task without renumbering the rest.
+            const first = Math.min(0, ...get().tasks.map((t) => t.order));
+            applyOrder(new Map([[id, first - 1]]));
           }
           pushEvents(
             { type: "interrupt_previewed", taskId: id, decision },

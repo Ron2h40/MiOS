@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { getMode, nextOrder, type ModeId, type Task } from "@/core";
+import { useState, type ReactNode } from "react";
+import { getMode, nextOrder, splitByDeadline, type ModeId, type Task } from "@/core";
 import { useDeadlocks, useModeLoad, useModeTasks, useNow, useStarved } from "@/state/hooks";
 import { buildSampleTasks } from "@/state/sampleData";
 import { useMios } from "@/state/store";
@@ -51,6 +51,19 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
   const showMode = modeId === "general";
   const rowProps = { showMode, now, handlers };
 
+  // Two queue sections side by side; each keeps its own order and numbering.
+  const { timed, untimed } = splitByDeadline(ready);
+  const queueRow = (t: Task, i: number, section: Task[]) => (
+    <TaskRow
+      key={t.id}
+      task={t}
+      rank={i + 1}
+      starvedDays={starvedById.get(t.id)}
+      queue={{ first: i === 0, last: i === section.length - 1, move: (dir) => moveTask(t.id, dir, modeId) }}
+      {...rowProps}
+    />
+  );
+
   return (
     <div className={s.screen}>
       <section className={s.hero}>
@@ -67,6 +80,8 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
           <Stat value={blocked.length} label="Blocked" />
         </div>
       </section>
+
+      <DeadlockPanel cycles={visibleDeadlocks} />
 
       <div className={s.columns}>
         <div className={s.stack}>
@@ -96,36 +111,47 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
               <Empty>Nothing running. Start the top task when you&apos;re ready.</Empty>
             )}
           </Card>
+        </div>
 
-          <Card
-            title="Ready queue"
-            hint="You set the order. MiOS never reorders on its own."
-            action={
-              ready.length > 1 && (
-                <Button size="sm" variant="plain" onClick={() => sortByPriority(modeId)}>
-                  Sort by priority & deadline
-                </Button>
-              )
-            }
-          >
-            {ready.length ? (
-              <ul className={s.list}>
-                {ready.map((t, i) => (
-                  <TaskRow
-                    key={t.id}
-                    task={t}
-                    rank={i + 1}
-                    starvedDays={starvedById.get(t.id)}
-                    queue={{ first: i === 0, last: i === ready.length - 1, move: (dir) => moveTask(t.id, dir, modeId) }}
-                    {...rowProps}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <Empty>Queue is empty.</Empty>
-            )}
-          </Card>
+        <aside className={s.stack}>
+          <TaskComposer key={modeId} mode={modeId} />
+        </aside>
+      </div>
 
+      <section className={s.queue} aria-labelledby="ready-queue">
+        <header className={s.queueHeader}>
+          <div>
+            <h2 id="ready-queue" className={s.queueTitle}>
+              Ready queue
+            </h2>
+            <p className={s.queueHint}>You set the order. MiOS never reorders on its own.</p>
+          </div>
+          {ready.length > 1 && (
+            <Button size="sm" variant="plain" onClick={() => sortByPriority(modeId)}>
+              Sort by priority & deadline
+            </Button>
+          )}
+        </header>
+        <div className={s.queueColumns}>
+          <QueueSection
+            title="With a deadline"
+            hint="Earliest deadline first after sorting."
+            empty="No tasks with a deadline."
+            tasks={timed}
+            render={queueRow}
+          />
+          <QueueSection
+            title="No deadline"
+            hint="Open-ended tasks. Their own type, kept out of your on-time rate."
+            empty="No open-ended tasks."
+            tasks={untimed}
+            render={queueRow}
+          />
+        </div>
+      </section>
+
+      <div className={s.columns}>
+        <div className={s.stack}>
           {blocked.length > 0 && (
             <Card title="Blocked" hint="Waiting on a task, a person or an event.">
               <ul className={s.list}>
@@ -157,8 +183,6 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
         </div>
 
         <aside className={s.stack}>
-          <DeadlockPanel cycles={visibleDeadlocks} />
-          <TaskComposer key={modeId} mode={modeId} />
           <StarvationPanel flags={starved.filter((f) => modeIds.has(f.task.id))} days={settings.starvationDays} />
           <ModeLoadPanel load={load} current={modeId} />
         </aside>
@@ -168,6 +192,26 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
       <BlockerDialog key={blocking?.id ?? "none"} task={blocking} onClose={() => setBlocking(null)} />
       <EditDialog key={editing?.id ?? "none-edit"} task={editing} onClose={() => setEditing(null)} />
     </div>
+  );
+}
+
+function QueueSection({
+  title,
+  hint,
+  empty,
+  tasks,
+  render,
+}: {
+  title: string;
+  hint: string;
+  empty: string;
+  tasks: Task[];
+  render: (t: Task, i: number, section: Task[]) => ReactNode;
+}) {
+  return (
+    <Card title={`${title} (${tasks.length})`} hint={hint}>
+      {tasks.length ? <ul className={s.list}>{tasks.map((t, i) => render(t, i, tasks))}</ul> : <Empty>{empty}</Empty>}
+    </Card>
   );
 }
 

@@ -33,25 +33,30 @@ export const nextOrder = (tasks: readonly Task[]): number =>
   tasks.reduce((max, t) => Math.max(max, t.order), 0) + 1;
 
 /**
- * Returns `id → order` for the given tasks re-numbered in the given sequence.
- * Used for "move up/down" and for the user's "sort by priority" action.
+ * Move one task up or down within a list (a whole queue or one section of it).
+ * The task swaps places with its neighbour in that list, and no other task's
+ * order changes. Returns only the two changed orders; empty at either end.
  */
-export const renumber = (ordered: readonly Task[]): Map<string, number> =>
-  new Map(ordered.map((t, i) => [t.id, i + 1]));
-
-/** Move one task up or down within a queue; returns the new order map. */
 export const moveInQueue = (
   queue: readonly Task[],
   taskId: string,
   direction: "up" | "down",
 ): Map<string, number> => {
-  const list = [...queue];
-  const i = list.findIndex((t) => t.id === taskId);
+  const i = queue.findIndex((t) => t.id === taskId);
   const j = direction === "up" ? i - 1 : i + 1;
-  if (i < 0 || j < 0 || j >= list.length) return renumber(list);
-  [list[i], list[j]] = [list[j], list[i]];
-  return renumber(list);
+  if (i < 0 || j < 0 || j >= queue.length) return new Map();
+  const [a, b] = [queue[i], queue[j]];
+  return new Map([
+    [a.id, b.order],
+    [b.id, a.order],
+  ]);
 };
+
+/** Ready tasks split into the two queue sections: with a deadline, and without. */
+export const splitByDeadline = (tasks: readonly Task[]): { timed: Task[]; untimed: Task[] } => ({
+  timed: tasks.filter((t) => t.deadline),
+  untimed: tasks.filter((t) => !t.deadline),
+});
 
 export interface Projection {
   task: Task;

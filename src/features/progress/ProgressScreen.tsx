@@ -19,8 +19,11 @@ export function ProgressScreen() {
   // All-time stats are never reset, even when the user moves back a stage.
   const allTime = useMemo(() => {
     const decisions = events.filter((e) => e.type === "decision_made");
+    const completed = events.filter((e) => e.type === "task_completed");
     return {
-      done: events.filter((e) => e.type === "task_completed").length,
+      withDeadline: completed.filter((e) => e.onTime !== null).length,
+      onTime: completed.filter((e) => e.onTime === true).length,
+      noDeadline: completed.filter((e) => e.onTime === null).length,
       noAi: decisions.filter((e) => !e.usedAi).length,
       deadlocks: events.filter((e) => e.type === "deadlock_broken").length,
       stageUps: events.filter((e) => e.type === "stage_changed" && e.reason === "auto").length,
@@ -105,7 +108,8 @@ export function ProgressScreen() {
 
       <Card title="All time" hint="Never reset, whatever stage you're on.">
         <div className={s.grid}>
-          <Tile value={String(allTime.done)} label="Tasks done" />
+          <Tile value={`${allTime.onTime} / ${allTime.withDeadline}`} label="Deadline tasks done on time" />
+          <Tile value={String(allTime.noDeadline)} label="No-deadline tasks done" />
           <Tile value={String(allTime.noAi)} label="Decisions without AI" />
           <Tile value={String(allTime.deadlocks)} label="Deadlocks broken" />
           <Tile value={String(allTime.stageUps)} label="Auto stage-ups" />

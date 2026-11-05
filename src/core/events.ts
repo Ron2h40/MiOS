@@ -17,7 +17,7 @@ export type MiosEvent =
       at: ISODateTime;
       stage: Stage;
       taskId: string;
-      /** null when the task had no deadline. */
+      /** null when the task had no deadline: its own type, left out of the on-time rate. */
       onTime: boolean | null;
       /** True when the user ordered/scheduled it without AI help. */
       ownChoice: boolean;

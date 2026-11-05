@@ -47,6 +47,16 @@ describe("progress gate: child → teen", () => {
     expect(s.pass).toBe(false);
   });
 
+  it("leaves tasks without a deadline out of the on-time rate", () => {
+    const noDeadline: MiosEvent[] = completed(15, true).map((e) => ({ ...e, onTime: null }));
+    const deadlineTasks: MiosEvent[] = [...completed(3, true), ...completed(2, false)];
+    const r = evaluateGate([...noDeadline, ...deadlineTasks, ...suggestions(5, 5)], "child", START, "2026-11-08T00:00:00.000Z");
+    const s = r.signals.find((x) => x.id === "onTime")!;
+    expect(s.sample).toEqual({ hits: 3, total: 5 });
+    // They still count as tasks done.
+    expect(r.signals.find((x) => x.id === "tasksDone")?.current).toBe(20);
+  });
+
   it("requires the minimum days at stage", () => {
     const events = [...completed(15, true), ...suggestions(5, 5)];
     expect(evaluateGate(events, "child", START, "2026-11-07T23:00:00.000Z").ready).toBe(false);

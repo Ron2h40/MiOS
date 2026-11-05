@@ -289,3 +289,56 @@
   gap: var(--space-3);
   justify-items: start;
 }
+
+/* Ready queue: two sections side by side, full page width */
+.queue {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.queueHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.queueTitle {
+  font-size: var(--text-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.queueHint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.queueColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .queueColumns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Rows in narrow cards put their buttons under the title instead of beside it. */
+.list {
+  container-type: inline-size;
+}
+
+@container (max-width: 560px) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}
