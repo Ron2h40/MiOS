@@ -41,6 +41,8 @@ export interface Task {
   /** User approved scheduling into protected time (A6). */
   protectedOverride?: boolean;
   blockedBy: Blocker[];
+  /** The task's order or start time came from an accepted AI suggestion (B1/B2). */
+  aiPlanned?: boolean;
   /** A3 — flagged as an incoming interrupt. */
   isInterrupt: boolean;
   /** A9 — user's guess, in minutes, made before starting. */
@@ -79,4 +81,6 @@ export interface Settings {
   protectedBlocks: ProtectedBlock[];
   /** Default estimate used for projections when a task has none. */
   defaultEstimateMinutes: number;
+  /** When the user finished onboarding and saw the AI disclosure. */
+  onboardedAt?: ISODateTime;
 }

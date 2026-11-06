@@ -89,7 +89,16 @@ interface Actions {
   moveTask(id: string, direction: "up" | "down", mode: ModeId): void;
   sortByPriority(mode: ModeId): void;
   /** A3: the user chose to run an interrupt first, or queue it normally. */
-  decideInterrupt(id: string, decision: "run_first" | "queue"): void;
+  decideInterrupt(id: string, decision: "run_first" | "queue", usedAi?: boolean): void;
+
+  /** B1: the user accepted an AI order (applied) or kept their own. */
+  resolveAiOrder(order: string[], outcome: "accepted" | "overridden"): void;
+  /** B2: apply a drafted schedule. Edited drafts count as the user's own plan. */
+  resolveAiSchedule(starts: { taskId: string; start: ISODateTime }[], outcome: "accepted" | "overridden"): void;
+  /** Any AI feature was used (feeds the background log). */
+  logAiUse(feature: string): void;
+  /** Teen pop-up answered or skipped. Product metric only; never a gate signal. */
+  logPopup(feature: string, outcome: "answered" | "skipped"): void;
 
   setStage(stage: Stage, reason?: "auto" | "manual"): void;
   /** Move the user up a stage if every gate signal passes. Returns the new stage if it changed. */
@@ -134,9 +143,12 @@ export const useMios = create<MiosStore>()(
       const replaceTask = (id: string, fn: (t: Task) => Task) =>
         set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? fn(t) : t)) }));
 
-      const applyOrder = (order: Map<string, number>) =>
+      /** Reorder tasks. A manual reorder makes the order the user's own again. */
+      const applyOrder = (order: Map<string, number>, aiPlanned = false) =>
         set((s) => ({
-          tasks: s.tasks.map((t) => (order.has(t.id) ? { ...t, order: order.get(t.id)!, updatedAt: now() } : t)),
+          tasks: s.tasks.map((t) =>
+            order.has(t.id) ? { ...t, order: order.get(t.id)!, aiPlanned, updatedAt: now() } : t,
+          ),
         }));
 
       const queueFor = (mode: ModeId) =>
@@ -179,8 +191,11 @@ export const useMios = create<MiosStore>()(
           if (before && patch.protectedOverride && !before.protectedOverride) {
             pushEvents({ type: "referee_override", taskId: id, blockLabel: "protected time" });
           }
-          if (patch.priority !== undefined) {
+          if (patch.priority !== undefined && patch.priority !== before?.priority) {
             pushEvents({ type: "decision_made", usedAi: false, feature: "priority" });
+          }
+          if (patch.estimateMinutes && patch.estimateMinutes !== before?.estimateMinutes) {
+            pushEvents({ type: "time_guess", taskId: id, minutes: patch.estimateMinutes });
           }
         },
 
@@ -217,9 +232,8 @@ export const useMios = create<MiosStore>()(
               type: "task_completed",
               taskId: id,
               onTime: finishedOnTime(updated),
-              // No AI features exist yet, so every order is the user's own.
-              // Section B sets this to false when the user accepts an AI order.
-              ownChoice: true,
+              // Not their own choice when the order or start time came from an accepted AI suggestion.
+              ownChoice: !updated.aiPlanned,
             });
             get().checkStageUp();
           }
@@ -244,6 +258,7 @@ export const useMios = create<MiosStore>()(
               }),
             };
           });
+          pushEvents({ type: "blocker_added", taskId, kind: input.kind });
         },
 
         removeBlocker(taskId, blockerId, opts) {
@@ -300,7 +315,7 @@ export const useMios = create<MiosStore>()(
           pushEvents({ type: "decision_made", usedAi: false, feature: "order" });
         },
 
-        decideInterrupt(id, decision) {
+        decideInterrupt(id, decision, usedAi = false) {
           if (decision === "run_first") {
             // Put it ahead of every other task without renumbering the rest.
             const first = Math.min(0, ...get().tasks.map((t) => t.order));
@@ -308,8 +323,46 @@ export const useMios = create<MiosStore>()(
           }
           pushEvents(
             { type: "interrupt_previewed", taskId: id, decision },
-            { type: "decision_made", usedAi: false, feature: "interrupt" },
+            { type: "decision_made", usedAi, feature: "interrupt" },
           );
+        },
+
+        resolveAiOrder(order, outcome) {
+          if (outcome === "accepted") {
+            const byId = new Map(get().tasks.map((t) => [t.id, t]));
+            const tasks = order.map((id) => byId.get(id)).filter((t): t is Task => !!t && t.state === "ready");
+            // Same slots as before, new sequence, so tasks in other modes don't move.
+            const slots = tasks.map((t) => t.order).sort((a, b) => a - b);
+            applyOrder(new Map(tasks.map((t, i) => [t.id, slots[i]])), true);
+          }
+          pushEvents(
+            { type: "ai_suggestion", feature: "priority", outcome },
+            { type: "decision_made", usedAi: true, feature: "order" },
+          );
+        },
+
+        resolveAiSchedule(starts, outcome) {
+          const at = now();
+          const byTask = new Map(starts.map((s) => [s.taskId, s.start]));
+          set((s) => ({
+            tasks: s.tasks.map((t) =>
+              byTask.has(t.id)
+                ? { ...t, scheduledStart: byTask.get(t.id), aiPlanned: outcome === "accepted", updatedAt: at }
+                : t,
+            ),
+          }));
+          pushEvents(
+            { type: "ai_suggestion", feature: "schedule", outcome },
+            { type: "decision_made", usedAi: true, feature: "schedule" },
+          );
+        },
+
+        logAiUse(feature) {
+          pushEvents({ type: "ai_used", feature });
+        },
+
+        logPopup(feature, outcome) {
+          pushEvents({ type: "popup_question", feature, outcome });
         },
 
         setStage(stage, reason = "manual") {

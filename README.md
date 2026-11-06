@@ -7,14 +7,17 @@
 
 ```bash
 npm install
+cp .env.example .env.local   # then add your free Gemini API key (optional)
 npm run dev        # http://localhost:3000
-npm test           # unit tests for the OS core
+npm test           # unit tests for the OS core and AI helpers
 npm run typecheck
 npm run lint
 npm run build
 ```
 
 On first launch, click **Load example tasks** to see a deadlock, a starved task and the cross-mode load.
+
+Without `GEMINI_API_KEY`, every AI feature still works using demo answers, labeled "Demo AI" in the app. Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
 
 ## Stack
 
@@ -23,7 +26,8 @@ On first launch, click **Load example tasks** to see a deadlock, a starved task 
 | Framework | Next.js 16 (App Router) + React 19 + TypeScript (strict) | Server route handlers are ready for the Gemini proxy and Google Calendar OAuth without a separate backend |
 | State | Zustand + `persist` (localStorage, versioned schema) | Small, testable, no boilerplate; storage can later move to a server without touching the UI |
 | Styling | CSS Modules + design tokens in `globals.css` | Styling stays separate from logic, so a redesign is a restyle, not a rewrite |
-| Tests | Vitest | Fast unit tests for the pure domain core |
+| AI | Google Gemini `gemini-3.1-flash-lite` via REST, behind a Next.js route | Cheapest stable model with a free tier (checked Nov 2026); the key never reaches the browser |
+| Tests | Vitest | Fast unit tests for the pure domain core and AI helpers |
 
 ## Architecture
 
@@ -41,14 +45,24 @@ src/
 │   ├── modes.ts       Mode registry + A8 cross-mode load ("glue")
 │   ├── stages.ts      Assistant stage policy + progress gate (auto stage-up)
 │   ├── events.ts      Metrics event log types
-│   └── __tests__/     30 unit tests
-├── state/           Zustand store: wires core rules to persistence + event log
+│   └── __tests__/
+├── ai/              AI assistant logic shared by browser and server. No React.
+│   ├── types.ts       Request/response types per feature, pop-up question shape
+│   ├── prompts.ts     Prompt + JSON-schema builders (stage-aware)
+│   ├── validate.ts    Checks every model answer before the app uses it
+│   ├── popup.ts       Teen pop-ups: history cleared at 30, random formats, shuffle
+│   ├── backgroundLog.ts  B8 triggers and event descriptions
+│   ├── mock.ts        Demo answers when no API key is set
+│   └── server/gemini.ts  Server-only Gemini client
+├── state/           Zustand stores: wire core rules to persistence + event log
 │   ├── store.ts       All mutations; every user decision is logged as an event
+│   ├── ai.ts          AI calls, background analysis log, pop-up stock and history
 │   └── hooks.ts       Derived read-side hooks (useStage, useGate, useDeadlocks …)
-├── features/        Screens, one folder per feature (tasks, focus, progress, settings, shell)
+├── features/        Screens, one folder per feature (tasks, ai, focus, progress, settings, shell)
 ├── ui/              Presentational primitives (Button, Card, Dialog, pills, toast)
 └── app/             Next.js routes only, thin wrappers around feature screens
     ├── (os)/          Routes inside the app shell: /m/[mode], /progress, /settings, /privacy
+    ├── api/ai/        POST /api/ai: the single server entry point for AI
     └── focus/         A7 focus view, outside the shell so everything else is hidden
 ```
 
@@ -61,3 +75,5 @@ Dependencies point one way: `app → features → state → core`. The core neve
 - **Metrics from day one.** Task completions (with on-time and own-choice flags), decisions with or without AI, interrupt choices, deadlock breaks, referee overrides and stage changes are all appended to an event log. The log feeds the gate now and the success metrics later.
 - **MiOS never decides for the user.** Sorting by priority is a button the user presses. Interrupts show a preview and wait for a choice. Deadlocks are shown, and the user picks which link to break.
 - **Blocked tasks wake up.** When every blocker clears, the task moves back to Ready, the way an OS wakes a waiting process.
+- **AI is a layer, not a dependency.** `src/core` never imports AI. All AI calls go through one server route, which also refuses AI at adult stage. Every model answer is validated, and invented task ids or malformed times are dropped.
+- **One door for AI help.** `AiHelpButton` applies the stage rules for every feature: direct at child stage, a pop-up question first at teen, hidden at adult.

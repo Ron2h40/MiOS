@@ -2,6 +2,8 @@
 
 import { useRef } from "react";
 import type { ProtectedBlock } from "@/core";
+import { AiDisclosureText } from "@/features/ai/AiDisclosure";
+import { useAi } from "@/state/ai";
 import { exportSnapshot, useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
@@ -136,13 +138,23 @@ export function SettingsScreen() {
         )}
       </Card>
 
-      <Card title="Your data" hint="Stored only in this browser.">
+      <Card title="AI and privacy" hint="What the assistant sees and where it goes.">
+        <div className={s.prose}>
+          <AiDisclosureText />
+        </div>
+      </Card>
+
+      <Card title="Your data" hint="Stored in this browser. AI requests are the only thing sent out.">
         <div className={s.row}>
           <Button onClick={download}>Export JSON</Button>
           <Button onClick={() => fileRef.current?.click()}>Import JSON</Button>
           <Button
             variant="danger"
-            onClick={() => confirm("Erase all tasks, stats and settings in this browser? This can't be undone.") && reset()}
+            onClick={() => {
+              if (!confirm("Erase all tasks, stats, AI notes and settings in this browser? This can't be undone.")) return;
+              reset();
+              useAi.getState().reset();
+            }}
           >
             Erase everything
           </Button>

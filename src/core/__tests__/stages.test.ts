@@ -64,15 +64,17 @@ describe("progress gate: child → teen", () => {
 });
 
 describe("progress gate: teen → adult", () => {
-  it("checks AI-free decisions and pop-up answers", () => {
+  it("checks AI-free decisions and ignores pop-up questions", () => {
     const decisions: MiosEvent[] = Array.from({ length: 10 }, (_, i) => ({
       type: "decision_made", at: LATER, stage: "teen", usedAi: i < 2, feature: "order",
     }));
-    const popups: MiosEvent[] = Array.from({ length: 10 }, (_, i) => ({
-      type: "popup_question", at: LATER, stage: "teen", feature: "B1", outcome: i < 7 ? "answered" : "skipped",
+    // Every pop-up skipped: must not matter, pop-ups are not a gate signal.
+    const popups: MiosEvent[] = Array.from({ length: 10 }, () => ({
+      type: "popup_question", at: LATER, stage: "teen", feature: "B1", outcome: "skipped",
     }));
     const r = evaluateGate([...completed(60, true, "teen"), ...decisions, ...popups], "teen", START, "2026-11-22T00:00:00.000Z");
     expect(r.to).toBe("adult");
+    expect(r.signals.map((s) => s.id)).not.toContain("popupAnswers");
     expect(r.ready).toBe(true);
   });
 });

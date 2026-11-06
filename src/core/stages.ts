@@ -62,15 +62,15 @@ export interface GateThresholds {
   minOverrideRate?: number;
   /** teen → adult only: share of decisions made without the AI button. */
   minNoAiDecisionRate?: number;
-  /** teen → adult only: share of pop-up questions answered, not skipped. */
-  minPopupAnswerRate?: number;
   minOnTimeRate: number;
   minDays: number;
 }
 
 export const GATES: Record<"child" | "teen", GateThresholds> = {
   child: { tasksDone: 15, minOverrideRate: 0.2, minOnTimeRate: 0.6, minDays: 7 },
-  teen: { tasksDone: 60, minNoAiDecisionRate: 0.7, minPopupAnswerRate: 0.6, minOnTimeRate: 0.75, minDays: 21 },
+  // Pop-up questions are deliberately NOT a signal: answering
+  // one means the user is already reaching for AI. They only add friction.
+  teen: { tasksDone: 60, minNoAiDecisionRate: 0.7, minOnTimeRate: 0.75, minDays: 21 },
 };
 
 export type SignalUnit = "count" | "rate" | "days";
@@ -152,12 +152,6 @@ export const evaluateGate = (
     const d = window.filter((e) => e.type === "decision_made");
     const own = d.filter((e) => !e.usedAi).length;
     signals.push(rateSignal("noAiDecisions", "Decisions made without the AI button", own, d.length, g.minNoAiDecisionRate));
-  }
-
-  if (g.minPopupAnswerRate !== undefined) {
-    const p = window.filter((e) => e.type === "popup_question");
-    const answered = p.filter((e) => e.outcome === "answered").length;
-    signals.push(rateSignal("popupAnswers", "Pop-up questions answered", answered, p.length, g.minPopupAnswerRate));
   }
 
   // Tasks with no deadline are their own type: they are

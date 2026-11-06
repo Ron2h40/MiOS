@@ -4,10 +4,14 @@ import { useMemo, useState } from "react";
 import { taskProtectedConflicts, wouldDeadlock, type Task } from "@/core";
 import { useMios, type NewBlocker } from "@/state/store";
 import { Button, Dialog } from "@/ui/primitives";
+import { EstimateAssist } from "@/features/ai/EstimateAssist";
 import { TaskFields, type TaskDraft } from "./TaskFields";
 import s from "./tasks.module.css";
 
-/** A9 — guess the time before starting, so MiOS can show how close guesses get. */
+/**
+ * A9 — guess the time before starting, so MiOS can show how close guesses get.
+ * B4 — at child and teen stage, AI gives a second opinion after the guess.
+ */
 export function StartDialog({
   task,
   onStart,
@@ -17,7 +21,11 @@ export function StartDialog({
   onStart: (estimateMinutes: number | undefined) => void;
   onClose: () => void;
 }) {
-  const [guess, setGuess] = useState("");
+  const [guess, setGuess] = useState(task?.estimateMinutes ? String(task.estimateMinutes) : "");
+  // The guess AI compares against: set when the user finishes typing, not on every keystroke.
+  const [locked, setLocked] = useState<number | undefined>(task?.estimateMinutes);
+  const lock = () => setLocked(Number(guess) > 0 ? Number(guess) : undefined);
+
   return (
     <Dialog
       open={!!task}
@@ -46,9 +54,11 @@ export function StartDialog({
           autoFocus
           value={guess}
           onChange={(e) => setGuess(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && Number(guess) && onStart(Number(guess))}
+          onBlur={lock}
+          onKeyDown={(e) => e.key === "Enter" && lock()}
         />
       </label>
+      {task && <EstimateAssist task={task} guess={locked} />}
     </Dialog>
   );
 }

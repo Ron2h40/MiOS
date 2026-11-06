@@ -59,7 +59,7 @@ export function ProgressScreen() {
           ))}
         </div>
         <p className={s.note}>
-          AI features arrive in the next build. Until then every stage runs the same hard-coded OS core.
+          The hard-coded OS core works the same at every stage. Only the AI help changes.
         </p>
       </Card>
 

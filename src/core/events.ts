@@ -28,7 +28,10 @@ export type MiosEvent =
   | { type: "interrupt_previewed"; at: ISODateTime; stage: Stage; taskId: string; decision: "run_first" | "queue" }
   | { type: "deadlock_broken"; at: ISODateTime; stage: Stage; cycleLength: number }
   | { type: "referee_override"; at: ISODateTime; stage: Stage; taskId: string; blockLabel: string }
-  | { type: "stage_changed"; at: ISODateTime; stage: Stage; from: Stage; to: Stage; reason: "auto" | "manual" };
+  | { type: "stage_changed"; at: ISODateTime; stage: Stage; from: Stage; to: Stage; reason: "auto" | "manual" }
+  | { type: "time_guess"; at: ISODateTime; stage: Stage; taskId: string; minutes: number }
+  | { type: "blocker_added"; at: ISODateTime; stage: Stage; taskId: string; kind: "task" | "person" | "event" }
+  | { type: "ai_used"; at: ISODateTime; stage: Stage; feature: string };
 
 export type MiosEventType = MiosEvent["type"];
 

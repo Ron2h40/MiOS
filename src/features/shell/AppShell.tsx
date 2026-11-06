@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ALL_MODES } from "@/core";
+import { AiRuntime } from "@/features/ai/AiRuntime";
+import { Onboarding } from "@/features/ai/AiDisclosure";
 import { useHydrated, useStage } from "@/state/hooks";
 import { Toaster } from "@/ui/toast";
 import s from "./shell.module.css";
@@ -63,6 +65,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className={s.main}>{children}</main>
 
       <Toaster />
+      {hydrated && (
+        <>
+          <AiRuntime />
+          <Onboarding />
+        </>
+      )}
 
       <footer className={s.footer}>
         MiOS v1 · Your data stays in this browser

@@ -2,11 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 import { getMode, nextOrder, splitByDeadline, type ModeId, type Task } from "@/core";
-import { useDeadlocks, useModeLoad, useModeTasks, useNow, useStarved } from "@/state/hooks";
+import { useDeadlocks, useModeLoad, useModeTasks, useNow, useStage, useStarved } from "@/state/hooks";
 import { buildSampleTasks } from "@/state/sampleData";
 import { useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
+import { QueueAssist } from "@/features/ai/QueueAssist";
 import { DeadlockPanel, ModeLoadPanel, StarvationPanel } from "./Panels";
 import { TaskComposer } from "./TaskComposer";
 import { BlockerDialog, EditDialog, StartDialog } from "./TaskDialogs";
@@ -21,6 +22,7 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
   const settings = useMios((st) => st.settings);
   const { moveTask, sortByPriority, setTaskState, updateTask, loadSample } = useMios.getState();
   const toast = useToast((st) => st.show);
+  const { policy } = useStage();
 
   const deadlocks = useDeadlocks();
   const load = useModeLoad(now);
@@ -42,8 +44,9 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
   };
 
   const handlers: RowHandlers = {
-    // A9: ask for a time guess first if there isn't one yet.
-    onStart: (task) => (task.estimateMinutes ? start(task) : setStarting(task)),
+    // A9: ask for a time guess first if there isn't one yet. At child and teen
+    // stage the dialog always opens so AI can give its estimate (B4).
+    onStart: (task) => (task.estimateMinutes && !policy.aiButton ? start(task) : setStarting(task)),
     onBlock: setBlocking,
     onEdit: setEditing,
   };
@@ -126,12 +129,15 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
             </h2>
             <p className={s.queueHint}>You set the order. MiOS never reorders on its own.</p>
           </div>
-          {ready.length > 1 && (
-            <Button size="sm" variant="plain" onClick={() => sortByPriority(modeId)}>
-              Sort by priority & deadline
-            </Button>
-          )}
+          <div className={s.toolbar}>
+            {ready.length > 1 && (
+              <Button size="sm" variant="plain" onClick={() => sortByPriority(modeId)}>
+                Sort by priority & deadline
+              </Button>
+            )}
+          </div>
         </header>
+        <QueueAssist key={modeId} queue={ready} />
         <div className={s.queueColumns}>
           <QueueSection
             title="With a deadline"

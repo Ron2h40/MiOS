@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { MINUTE_MS, previewInterrupt, readyQueue, remainingMinutes, toIso } from "@/core";
+import { InterruptAssist } from "@/features/ai/InterruptAssist";
 import { useMios } from "@/state/store";
 import { formatMinutes, formatWhen } from "@/ui/format";
 import { Button, Dialog, Empty } from "@/ui/primitives";
@@ -15,6 +16,8 @@ export function InterruptDialog({ taskId, onClose }: { taskId: string | null; on
   const tasks = useMios((st) => st.tasks);
   const est = useMios((st) => st.settings.defaultEstimateMinutes);
   const decideInterrupt = useMios((st) => st.decideInterrupt);
+  // Did AI help with this decision? Then it's logged as made with AI.
+  const usedAi = useRef(false);
 
   const preview = useMemo(() => {
     const task = tasks.find((t) => t.id === taskId);
@@ -30,7 +33,8 @@ export function InterruptDialog({ taskId, onClose }: { taskId: string | null; on
   }, [tasks, taskId, est]);
 
   const decide = (decision: "run_first" | "queue") => {
-    if (taskId) decideInterrupt(taskId, decision);
+    if (taskId) decideInterrupt(taskId, decision, usedAi.current);
+    usedAi.current = false;
     onClose();
   };
 
@@ -79,6 +83,7 @@ export function InterruptDialog({ taskId, onClose }: { taskId: string | null; on
               ))}
             </ul>
           )}
+          <InterruptAssist key={preview.task.id} task={preview.task} preview={preview} onUsed={() => (usedAi.current = true)} />
         </>
       )}
     </Dialog>
