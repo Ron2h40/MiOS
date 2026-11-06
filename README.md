@@ -45,6 +45,8 @@ src/
 │   ├── modes.ts       Mode registry + A8 cross-mode load ("glue")
 │   ├── stages.ts      Assistant stage policy + progress gate (auto stage-up)
 │   ├── events.ts      Metrics event log types
+│   ├── resources.ts   C1/C4/C5 effect curves, levels, day series, task cost
+│   ├── resourcePresets.ts  C3 presets; medicine facts with FDA label sources
 │   └── __tests__/
 ├── ai/              AI assistant logic shared by browser and server. No React.
 │   ├── types.ts       Request/response types per feature, pop-up question shape
@@ -61,7 +63,7 @@ src/
 ├── features/        Screens, one folder per feature (tasks, ai, focus, progress, settings, shell)
 ├── ui/              Presentational primitives (Button, Card, Dialog, pills, toast)
 └── app/             Next.js routes only, thin wrappers around feature screens
-    ├── (os)/          Routes inside the app shell: /m/[mode], /progress, /settings, /privacy
+    ├── (os)/          Routes inside the app shell: /m/[mode], /resources, /progress, /settings, /privacy
     ├── api/ai/        POST /api/ai: the single server entry point for AI
     └── focus/         A7 focus view, outside the shell so everything else is hidden
 ```

@@ -12,3 +12,5 @@ export * from "./referee";
 export * from "./timeGuess";
 export * from "./modes";
 export * from "./stages";
+export * from "./resources";
+export * from "./resourcePresets";

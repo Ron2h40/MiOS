@@ -24,6 +24,9 @@ import {
   type ProcessState,
   type Result,
   type Settings,
+  pruneEntries,
+  type ResourceEntry,
+  type Tolerance,
   type Stage,
   type Task,
   type TaskModeId,
@@ -74,6 +77,10 @@ interface Data {
   settings: Settings;
   /** When this person started using MiOS (fallback for "days at stage"). */
   startedAt: ISODateTime;
+  /** C2 — what the user logged (food, water, sleep, medicine). */
+  resourceEntries: ResourceEntry[];
+  /** C4 — personal tolerance per item id. */
+  tolerances: Record<string, Tolerance>;
 }
 
 interface Actions {
@@ -108,6 +115,12 @@ interface Actions {
   log(event: MiosEventInput): void;
   importData(json: string): Result<void>;
   loadSample(tasks: Task[]): void;
+
+  /** C2 — log an item now or at another time. Sleep takes hours slept. */
+  logResource(itemId: string, opts?: { at?: ISODateTime; hours?: number }): ResourceEntry;
+  removeResource(entryId: string): void;
+  /** C4 — set or clear (null) an item's personal tolerance. */
+  setTolerance(itemId: string, tolerance: Tolerance | null): void;
   reset(): void;
 }
 
@@ -121,6 +134,8 @@ const initialData = (): Data => ({
   events: [],
   settings: DEFAULT_SETTINGS,
   startedAt: now(),
+  resourceEntries: [],
+  tolerances: {},
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -403,6 +418,8 @@ export const useMios = create<MiosStore>()(
               events: parsed.events,
               settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
               startedAt: parsed.startedAt ?? now(),
+              resourceEntries: Array.isArray(parsed.resourceEntries) ? parsed.resourceEntries : [],
+              tolerances: parsed.tolerances ?? {},
             });
             return ok(undefined);
           } catch {
@@ -412,6 +429,27 @@ export const useMios = create<MiosStore>()(
 
         loadSample(tasks) {
           set((s) => ({ tasks: [...s.tasks, ...tasks] }));
+        },
+
+        logResource(itemId, opts = {}) {
+          const entry: ResourceEntry = { id: uid(), itemId, at: opts.at ?? now(), ...(opts.hours !== undefined ? { hours: opts.hours } : {}) };
+          set((s) => ({
+            resourceEntries: pruneEntries([...s.resourceEntries, entry], Date.now()).sort((a, b) => a.at.localeCompare(b.at)),
+          }));
+          return entry;
+        },
+
+        removeResource(entryId) {
+          set((s) => ({ resourceEntries: s.resourceEntries.filter((e) => e.id !== entryId) }));
+        },
+
+        setTolerance(itemId, tolerance) {
+          set((s) => {
+            const next = { ...s.tolerances };
+            if (tolerance) next[itemId] = tolerance;
+            else delete next[itemId];
+            return { tolerances: next };
+          });
         },
 
         reset() {
@@ -424,7 +462,14 @@ export const useMios = create<MiosStore>()(
       version: SCHEMA_VERSION,
       // `window.localStorage` throws on the server, which tells persist to skip storage there.
       storage: createJSONStorage(() => window.localStorage),
-      partialize: ({ tasks, events, settings, startedAt }) => ({ tasks, events, settings, startedAt }),
+      partialize: ({ tasks, events, settings, startedAt, resourceEntries, tolerances }) => ({
+        tasks,
+        events,
+        settings,
+        startedAt,
+        resourceEntries,
+        tolerances,
+      }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
     },
@@ -433,6 +478,10 @@ export const useMios = create<MiosStore>()(
 
 /** Serialize everything for a JSON export. */
 export const exportSnapshot = (): string => {
-  const { tasks, events, settings, startedAt } = useMios.getState();
-  return JSON.stringify({ version: SCHEMA_VERSION, exportedAt: now(), tasks, events, settings, startedAt }, null, 2);
+  const { tasks, events, settings, startedAt, resourceEntries, tolerances } = useMios.getState();
+  return JSON.stringify(
+    { version: SCHEMA_VERSION, exportedAt: now(), tasks, events, settings, startedAt, resourceEntries, tolerances },
+    null,
+    2,
+  );
 };

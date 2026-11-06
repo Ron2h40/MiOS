@@ -59,6 +59,11 @@
   --text-2xl: 30px;
 
   --content-width: 1120px;
+
+  /* Resource chart series (validated categorical slots 1–3, light). */
+  --series-focus: #2a78d6;
+  --series-energy: #eb6834;
+  --series-hydration: #1baf7a;
   color-scheme: light;
 }
 
@@ -80,6 +85,9 @@
     --red: #ff453a;
     --purple: #bf5af2;
     --shadow: none;
+    --series-focus: #3987e5;
+    --series-energy: #d95926;
+    --series-hydration: #199e70;
     color-scheme: dark;
   }
 }

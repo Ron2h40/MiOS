@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
+  activeEffects,
+  daySeries,
+  levelsAt,
+  PRESETS_BY_ID,
+  runningIntervals,
+  startOfDay,
   evaluateGate,
   findDeadlocks,
   findStarved,
@@ -90,4 +96,22 @@ export const useGate = (now: string) => {
     const entered = stageEnteredAt(events, stage, startedAt);
     return { entered, ...evaluateGate(events, stage, entered, now) };
   }, [events, stage, startedAt, now]);
+};
+
+/** C1 — resource levels now, today's curve, and what's still working. */
+export const useResources = (now: string, day?: number) => {
+  const entries = useMios((s) => s.resourceEntries);
+  const tolerances = useMios((s) => s.tolerances);
+  const events = useMios((s) => s.events);
+  return useMemo(() => {
+    const t = Date.parse(now);
+    const input = { entries, items: PRESETS_BY_ID, tolerances, intervals: runningIntervals(events, t) };
+    const dayStart = day ?? startOfDay(t);
+    return {
+      levels: levelsAt(input, t),
+      series: daySeries(input, dayStart, 10),
+      active: activeEffects(input, t),
+      dayStart,
+    };
+  }, [entries, tolerances, events, now, day]);
 };

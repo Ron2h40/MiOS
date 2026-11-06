@@ -8,6 +8,7 @@ import { useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import { QueueAssist } from "@/features/ai/QueueAssist";
+import { ResourceStrip } from "@/features/resources/ResourceStrip";
 import { DeadlockPanel, ModeLoadPanel, StarvationPanel } from "./Panels";
 import { TaskComposer } from "./TaskComposer";
 import { BlockerDialog, EditDialog, StartDialog } from "./TaskDialogs";
@@ -83,6 +84,8 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
           <Stat value={blocked.length} label="Blocked" />
         </div>
       </section>
+
+      <ResourceStrip />
 
       <DeadlockPanel cycles={visibleDeadlocks} />
 

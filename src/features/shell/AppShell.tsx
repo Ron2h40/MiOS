@@ -12,6 +12,7 @@ import s from "./shell.module.css";
 
 const NAV = [
   { href: "/focus", label: "Focus" },
+  { href: "/resources", label: "Resources" },
   { href: "/progress", label: "Progress" },
   { href: "/settings", label: "Settings" },
 ];
