@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { STAGE_POLICY, STAGES, type GateSignal } from "@/core";
+import { PastWraps, StreakCard } from "@/features/rewards/Rewards";
 import { useGate, useGuessAccuracy, useNow, useStage } from "@/state/hooks";
 import { useMios } from "@/state/store";
 import { formatMinutes, pct } from "@/ui/format";
@@ -83,6 +84,9 @@ export function ProgressScreen() {
           <p>You reached adult stage. Needing MiOS less is the goal, not a failure.</p>
         </Card>
       )}
+
+      <StreakCard />
+      <PastWraps />
 
       <Card title="Time-guess training" hint="How close your guesses land to the real time.">
         {guesses.samples.length ? (

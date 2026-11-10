@@ -47,6 +47,8 @@ src/
 │   ├── events.ts      Metrics event log types
 │   ├── resources.ts   C1/C4/C5 effect curves, levels, day series, task cost
 │   ├── resourcePresets.ts  C3 presets; medicine facts with FDA label sources
+│   ├── rewards.ts     D2/D5/D6 streak with freezes, period stats, records, when a drop is due
+│   ├── wrap.ts        D1/D3/D4 stats-drop cards with compliments built from real numbers
 │   └── __tests__/
 ├── ai/              AI assistant logic shared by browser and server. No React.
 │   ├── types.ts       Request/response types per feature, pop-up question shape

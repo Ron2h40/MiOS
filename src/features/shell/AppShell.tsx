@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ALL_MODES } from "@/core";
 import { AiRuntime } from "@/features/ai/AiRuntime";
 import { Onboarding } from "@/features/ai/AiDisclosure";
+import { RewardBanner, StreakBadge } from "@/features/rewards/Rewards";
 import { useHydrated, useStage } from "@/state/hooks";
 import { Toaster } from "@/ui/toast";
 import s from "./shell.module.css";
@@ -58,12 +59,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {n.label}
               </Link>
             ))}
+            {hydrated && <StreakBadge />}
             {hydrated && <StageBadge />}
           </nav>
         </div>
       </header>
 
-      <main className={s.main}>{children}</main>
+      <main className={s.main}>
+        {hydrated && <RewardBanner />}
+        {children}
+      </main>
 
       <Toaster />
       {hydrated && (

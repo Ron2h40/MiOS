@@ -27,6 +27,7 @@ import {
   pruneEntries,
   type ResourceEntry,
   type Tolerance,
+  type Wrap,
   type Stage,
   type Task,
   type TaskModeId,
@@ -81,6 +82,10 @@ interface Data {
   resourceEntries: ResourceEntry[];
   /** C4 — personal tolerance per item id. */
   tolerances: Record<string, Tolerance>;
+  /** D2 — rewards already shown (key → when), so each fires once. */
+  celebrated: Record<string, string>;
+  /** D1 — past stats drops, newest first, to reopen from Progress. */
+  wraps: Wrap[];
 }
 
 interface Actions {
@@ -121,6 +126,9 @@ interface Actions {
   removeResource(entryId: string): void;
   /** C4 — set or clear (null) an item's personal tolerance. */
   setTolerance(itemId: string, tolerance: Tolerance | null): void;
+
+  /** D1/D2 — the user opened a stats drop: remember it and never offer it again. */
+  saveWrap(wrap: Wrap): void;
   reset(): void;
 }
 
@@ -136,6 +144,8 @@ const initialData = (): Data => ({
   startedAt: now(),
   resourceEntries: [],
   tolerances: {},
+  celebrated: {},
+  wraps: [],
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -420,6 +430,8 @@ export const useMios = create<MiosStore>()(
               startedAt: parsed.startedAt ?? now(),
               resourceEntries: Array.isArray(parsed.resourceEntries) ? parsed.resourceEntries : [],
               tolerances: parsed.tolerances ?? {},
+              celebrated: parsed.celebrated ?? {},
+              wraps: Array.isArray(parsed.wraps) ? parsed.wraps : [],
             });
             return ok(undefined);
           } catch {
@@ -452,6 +464,13 @@ export const useMios = create<MiosStore>()(
           });
         },
 
+        saveWrap(wrap) {
+          set((s) => ({
+            celebrated: { ...s.celebrated, [wrap.key]: now() },
+            wraps: [wrap, ...s.wraps.filter((w) => w.key !== wrap.key)].slice(0, 30),
+          }));
+        },
+
         reset() {
           set(initialData());
         },
@@ -462,13 +481,15 @@ export const useMios = create<MiosStore>()(
       version: SCHEMA_VERSION,
       // `window.localStorage` throws on the server, which tells persist to skip storage there.
       storage: createJSONStorage(() => window.localStorage),
-      partialize: ({ tasks, events, settings, startedAt, resourceEntries, tolerances }) => ({
+      partialize: ({ tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps }) => ({
         tasks,
         events,
         settings,
         startedAt,
         resourceEntries,
         tolerances,
+        celebrated,
+        wraps,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
@@ -478,9 +499,9 @@ export const useMios = create<MiosStore>()(
 
 /** Serialize everything for a JSON export. */
 export const exportSnapshot = (): string => {
-  const { tasks, events, settings, startedAt, resourceEntries, tolerances } = useMios.getState();
+  const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = useMios.getState();
   return JSON.stringify(
-    { version: SCHEMA_VERSION, exportedAt: now(), tasks, events, settings, startedAt, resourceEntries, tolerances },
+    { version: SCHEMA_VERSION, exportedAt: now(), tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps },
     null,
     2,
   );

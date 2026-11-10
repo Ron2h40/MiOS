@@ -14,3 +14,5 @@ export * from "./modes";
 export * from "./stages";
 export * from "./resources";
 export * from "./resourcePresets";
+export * from "./rewards";
+export * from "./wrap";

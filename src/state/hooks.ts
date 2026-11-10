@@ -2,6 +2,13 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
+  averageLevels,
+  buildWrap,
+  computeStreak,
+  dueRewards,
+  periodStats,
+  type DueReward,
+  type Wrap,
   activeEffects,
   daySeries,
   levelsAt,
@@ -114,4 +121,36 @@ export const useResources = (now: string, day?: number) => {
       dayStart,
     };
   }, [entries, tolerances, events, now, day]);
+};
+
+/** D5 — the current streak, derived from the event log. */
+export const useStreak = (now: string) => {
+  const events = useMios((s) => s.events);
+  return useMemo(() => computeStreak(events, Date.parse(now)), [events, now]);
+};
+
+/** D2 — stats drops waiting to be opened (milestones first, then week and month). */
+export const useDueRewards = (now: string) => {
+  const events = useMios((s) => s.events);
+  const celebrated = useMios((s) => s.celebrated);
+  return useMemo(() => dueRewards(events, Date.parse(now), celebrated), [events, celebrated, now]);
+};
+
+/** Build the cards for a reward from current data (D1, D3, D4). */
+export const makeWrap = (reward: Pick<DueReward, "key" | "kind" | "headline" | "from" | "to" | "milestone">): Wrap => {
+  const { events, resourceEntries, tolerances } = useMios.getState();
+  const now = Date.now();
+  const span = reward.to - reward.from;
+  const input = { entries: resourceEntries, items: PRESETS_BY_ID, tolerances, intervals: runningIntervals(events, now) };
+  const charts = averageLevels(input, reward.from, reward.to);
+  return buildWrap({
+    reward,
+    stats: periodStats(events, reward.from, reward.to),
+    previous: periodStats(events, reward.from - span, reward.from),
+    streak: computeStreak(events, now),
+    levels: charts?.levels ?? null,
+    chartDays: charts?.days ?? 0,
+    previousLevels: averageLevels(input, reward.from - span, reward.from)?.levels ?? null,
+    now,
+  });
 };
