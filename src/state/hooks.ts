@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
+  busyIntervals,
+  pendingToday,
   averageLevels,
   buildWrap,
   computeStreak,
@@ -153,4 +155,26 @@ export const makeWrap = (reward: Pick<DueReward, "key" | "kind" | "headline" | "
     previousLevels: averageLevels(input, reward.from - span, reward.from)?.levels ?? null,
     now,
   });
+};
+
+/** E — calendar time the referee protects (unsorted or "Not MiOS" items). */
+export const useBusy = () => {
+  const events = useMios((s) => s.calendarEvents);
+  const decisions = useMios((s) => s.calendarDecisions);
+  const tasks = useMios((s) => s.tasks);
+  return useMemo(() => busyIntervals(events, decisions, tasks), [events, decisions, tasks]);
+};
+
+/** E — today's calendar items still waiting for the morning check-in. */
+export const usePendingToday = (now: string) => {
+  const events = useMios((s) => s.calendarEvents);
+  const decisions = useMios((s) => s.calendarDecisions);
+  const tasks = useMios((s) => s.tasks);
+  const day = now.slice(0, 13);
+  return useMemo(
+    () => pendingToday(events, decisions, tasks, Date.parse(now)),
+    // Recompute when the hour changes, not every tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [events, decisions, tasks, day],
+  );
 };

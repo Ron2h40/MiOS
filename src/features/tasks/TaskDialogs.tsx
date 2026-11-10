@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { taskProtectedConflicts, wouldDeadlock, type Task } from "@/core";
+import { useBusy } from "@/state/hooks";
 import { useMios, type NewBlocker } from "@/state/store";
 import { Button, Dialog } from "@/ui/primitives";
 import { EstimateAssist } from "@/features/ai/EstimateAssist";
@@ -154,6 +155,7 @@ export function BlockerDialog({ task, onClose }: { task: Task | null; onClose: (
 export function EditDialog({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const updateTask = useMios((st) => st.updateTask);
   const settings = useMios((st) => st.settings);
+  const busy = useBusy();
   const [draft, setDraft] = useState<TaskDraft | null>(null);
   const current: TaskDraft | null =
     draft ??
@@ -171,7 +173,7 @@ export function EditDialog({ task, onClose }: { task: Task | null; onClose: () =
     onClose();
   };
 
-  const conflicts = current && task ? taskProtectedConflicts({ ...current, protectedOverride: task.protectedOverride && current.scheduledStart === task.scheduledStart }, settings) : [];
+  const conflicts = current && task ? taskProtectedConflicts({ ...current, protectedOverride: task.protectedOverride && current.scheduledStart === task.scheduledStart }, settings, busy) : [];
 
   const save = () => {
     if (!task || !current?.title.trim()) return;
@@ -191,7 +193,7 @@ export function EditDialog({ task, onClose }: { task: Task | null; onClose: () =
             Cancel
           </Button>
           <Button variant={conflicts.length ? "danger" : "primary"} onClick={save} disabled={!current?.title.trim()}>
-            {conflicts.length ? "Save into protected time" : "Save"}
+            {conflicts.length ? (conflicts[0].kind === "calendar" ? "Save into busy time" : "Save into protected time") : "Save"}
           </Button>
         </>
       }
@@ -201,7 +203,7 @@ export function EditDialog({ task, onClose }: { task: Task | null; onClose: () =
           <TaskFields draft={current} onChange={setDraft} showMode />
           {conflicts.length > 0 && (
             <p className={`${s.callout} ${s.calloutWarn}`}>
-              The planned start overlaps <strong>{conflicts[0].block.label}</strong>. Saving approves it.
+              The planned start overlaps <strong>{conflicts[0].label}</strong>. Saving approves it.
             </p>
           )}
         </div>

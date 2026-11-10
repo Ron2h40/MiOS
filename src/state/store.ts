@@ -3,6 +3,16 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
+  autoTasksToday,
+  decisionKey,
+  mergeEvents,
+  pruneCalendar,
+  taskInputFromEvent,
+  taskProtectedConflicts,
+  type CalendarDecision,
+  type CalendarEvent,
+  type CalendarSource,
+  type MergeReport,
   err,
   evaluateGate,
   finishedOnTime,
@@ -51,6 +61,7 @@ export interface NewTaskInput {
   estimateMinutes?: number;
   isInterrupt?: boolean;
   protectedOverride?: boolean;
+  source?: Task["source"];
 }
 
 export type TaskPatch = Partial<
@@ -86,6 +97,19 @@ interface Data {
   celebrated: Record<string, string>;
   /** D1 — past stats drops, newest first, to reopen from Progress. */
   wraps: Wrap[];
+  /** E1/E2 — imported calendars, their events, and the morning check-in answers. */
+  calendarSources: CalendarSource[];
+  calendarEvents: CalendarEvent[];
+  calendarDecisions: Record<string, CalendarDecision>;
+}
+
+/** One row of the morning check-in. */
+export interface CalendarAnswer {
+  eventKey: string;
+  choice: "task" | "busy" | "skip";
+  /** Repeating items: apply to every occurrence, or just this one. */
+  scope: "once" | "series";
+  mode: TaskModeId;
 }
 
 interface Actions {
@@ -129,6 +153,16 @@ interface Actions {
 
   /** D1/D2 — the user opened a stats drop: remember it and never offer it again. */
   saveWrap(wrap: Wrap): void;
+
+  /** E1 — merge a parsed .ics file. Re-importing the same file changes nothing. */
+  importCalendar(input: { fileName: string; name?: string; events: CalendarEvent[] }): MergeReport;
+  removeCalendar(sourceId: string): void;
+  /** E — the morning check-in: each item becomes a task or busy time. */
+  sortCalendarItems(answers: CalendarAnswer[]): { added: number };
+  /** Ask about an item (or a whole repeating series) again. */
+  forgetCalendarDecision(key: string): void;
+  /** Make today's tasks for repeating items the user always adds; prune old events. */
+  runCalendarDaily(): number;
   reset(): void;
 }
 
@@ -146,6 +180,9 @@ const initialData = (): Data => ({
   tolerances: {},
   celebrated: {},
   wraps: [],
+  calendarSources: [],
+  calendarEvents: [],
+  calendarDecisions: {},
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -179,6 +216,23 @@ export const useMios = create<MiosStore>()(
       const queueFor = (mode: ModeId) =>
         readyQueue(mode === "general" ? get().tasks : get().tasks.filter((t) => t.mode === mode));
 
+      /**
+       * A calendar item becomes a task exactly as if the user typed it: same
+       * defaults, same event log. The time comes from their own calendar, so
+       * landing in protected time counts as approved (and is logged).
+       */
+      const createFromEvent = (e: CalendarEvent, mode: TaskModeId): Task => {
+        const input = taskInputFromEvent(e);
+        const inProtected = taskProtectedConflicts(input, get().settings).length > 0;
+        return get().addTask({
+          ...input,
+          mode,
+          priority: 3,
+          protectedOverride: inProtected || undefined,
+          source: { kind: "calendar", eventKey: e.key, uid: e.uid },
+        });
+      };
+
       return {
         ...initialData(),
 
@@ -201,6 +255,7 @@ export const useMios = create<MiosStore>()(
             createdAt: at,
             updatedAt: at,
             stateChangedAt: at,
+            ...(input.source ? { source: input.source } : {}),
           };
           set((s) => ({ tasks: [...s.tasks, task] }));
           pushEvents({ type: "task_created", taskId: task.id, mode: task.mode, isInterrupt: task.isInterrupt });
@@ -432,6 +487,9 @@ export const useMios = create<MiosStore>()(
               tolerances: parsed.tolerances ?? {},
               celebrated: parsed.celebrated ?? {},
               wraps: Array.isArray(parsed.wraps) ? parsed.wraps : [],
+              calendarSources: Array.isArray(parsed.calendarSources) ? parsed.calendarSources : [],
+              calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
+              calendarDecisions: parsed.calendarDecisions ?? {},
             });
             return ok(undefined);
           } catch {
@@ -471,6 +529,88 @@ export const useMios = create<MiosStore>()(
           }));
         },
 
+        importCalendar({ fileName, name, events }) {
+          const at = now();
+          const existing = get().calendarSources.find((c) => c.kind === "ics" && c.fileName === fileName);
+          const source: CalendarSource = existing
+            ? { ...existing, name: name ?? existing.name, importedAt: at }
+            : { id: uid(), kind: "ics", name: name ?? fileName.replace(/\.ics$/i, ""), fileName, importedAt: at };
+          const { events: merged, report } = mergeEvents(
+            get().calendarEvents,
+            events.map((e) => ({ ...e, sourceId: source.id })),
+            get().tasks,
+            Date.now(),
+          );
+          // A file whose items were all already here (e.g. MiOS's own export) leaves no empty calendar behind.
+          const keep = !!existing || merged.some((e) => e.sourceId === source.id);
+          set((s) => ({
+            calendarEvents: merged,
+            calendarSources: keep ? [...s.calendarSources.filter((c) => c.id !== source.id), source] : s.calendarSources,
+          }));
+          return report;
+        },
+
+        removeCalendar(sourceId) {
+          set((s) => {
+            const left = s.calendarEvents.filter((e) => e.sourceId !== sourceId);
+            const pruned = pruneCalendar(left, s.calendarDecisions, Date.now());
+            return {
+              calendarSources: s.calendarSources.filter((c) => c.id !== sourceId),
+              calendarEvents: pruned.events,
+              calendarDecisions: pruned.decisions,
+            };
+          });
+        },
+
+        sortCalendarItems(answers) {
+          const at = now();
+          let added = 0;
+          const decisions: Record<string, CalendarDecision> = {};
+          for (const a of answers) {
+            const e = get().calendarEvents.find((x) => x.key === a.eventKey);
+            if (!e) continue;
+            const scope = e.recurring && a.choice !== "skip" ? a.scope : "once";
+            const key = scope === "series" ? decisionKey.series(e) : decisionKey.once(e);
+            if (a.choice === "task") {
+              // Never make a second task for the same item, however often this runs.
+              const already = get().tasks.find((t) => t.source?.eventKey === e.key);
+              const task = already ?? createFromEvent(e, a.mode);
+              if (!already) added++;
+              decisions[key] = { choice: "task", taskId: task.id, mode: a.mode, at };
+              if (scope === "series") decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
+            } else {
+              decisions[key] = { choice: "busy", ...(a.choice === "skip" ? { skipped: true } : {}), at };
+            }
+          }
+          set((s) => ({ calendarDecisions: { ...s.calendarDecisions, ...decisions } }));
+          return { added };
+        },
+
+        forgetCalendarDecision(key) {
+          set((s) => {
+            const next = { ...s.calendarDecisions };
+            delete next[key];
+            return { calendarDecisions: next };
+          });
+        },
+
+        runCalendarDaily() {
+          const nowMs = Date.now();
+          const pruned = pruneCalendar(get().calendarEvents, get().calendarDecisions, nowMs);
+          set({ calendarEvents: pruned.events, calendarDecisions: pruned.decisions });
+          const due = autoTasksToday(get().calendarEvents, get().calendarDecisions, get().tasks, nowMs);
+          const at = now();
+          const decisions: Record<string, CalendarDecision> = {};
+          for (const e of due) {
+            if (get().tasks.some((t) => t.source?.eventKey === e.key)) continue;
+            const mode = get().calendarDecisions[decisionKey.series(e)]?.mode ?? "daily-life";
+            const task = createFromEvent(e, mode);
+            decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
+          }
+          if (due.length) set((s) => ({ calendarDecisions: { ...s.calendarDecisions, ...decisions } }));
+          return due.length;
+        },
+
         reset() {
           set(initialData());
         },
@@ -481,7 +621,7 @@ export const useMios = create<MiosStore>()(
       version: SCHEMA_VERSION,
       // `window.localStorage` throws on the server, which tells persist to skip storage there.
       storage: createJSONStorage(() => window.localStorage),
-      partialize: ({ tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps }) => ({
+      partialize: ({
         tasks,
         events,
         settings,
@@ -490,6 +630,21 @@ export const useMios = create<MiosStore>()(
         tolerances,
         celebrated,
         wraps,
+        calendarSources,
+        calendarEvents,
+        calendarDecisions,
+      }) => ({
+        tasks,
+        events,
+        settings,
+        startedAt,
+        resourceEntries,
+        tolerances,
+        celebrated,
+        wraps,
+        calendarSources,
+        calendarEvents,
+        calendarDecisions,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
@@ -499,9 +654,25 @@ export const useMios = create<MiosStore>()(
 
 /** Serialize everything for a JSON export. */
 export const exportSnapshot = (): string => {
-  const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = useMios.getState();
+  const s = useMios.getState();
+  const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = s;
+  const { calendarSources, calendarEvents, calendarDecisions } = s;
   return JSON.stringify(
-    { version: SCHEMA_VERSION, exportedAt: now(), tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps },
+    {
+      version: SCHEMA_VERSION,
+      exportedAt: now(),
+      tasks,
+      events,
+      settings,
+      startedAt,
+      resourceEntries,
+      tolerances,
+      celebrated,
+      wraps,
+      calendarSources,
+      calendarEvents,
+      calendarDecisions,
+    },
     null,
     2,
   );

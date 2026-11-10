@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { taskProtectedConflicts, type ModeId, type ProtectedConflict } from "@/core";
+import { useBusy } from "@/state/hooks";
 import { useMios } from "@/state/store";
 import { Button, Card } from "@/ui/primitives";
 import { InterruptDialog } from "./InterruptDialog";
@@ -12,6 +13,7 @@ import s from "./tasks.module.css";
 export function TaskComposer({ mode }: { mode: ModeId }) {
   const addTask = useMios((st) => st.addTask);
   const settings = useMios((st) => st.settings);
+  const busy = useBusy();
 
   const blank = (): TaskDraft => ({ title: "", mode: mode === "general" ? "daily-life" : mode, priority: 3 });
   const [draft, setDraft] = useState<TaskDraft>(blank);
@@ -30,7 +32,7 @@ export function TaskComposer({ mode }: { mode: ModeId }) {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!draft.title.trim()) return;
-    const found = taskProtectedConflicts(draft, settings);
+    const found = taskProtectedConflicts(draft, settings, busy);
     if (found.length) setConflicts(found);
     else create(false);
   };

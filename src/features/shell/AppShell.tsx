@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ALL_MODES } from "@/core";
 import { AiRuntime } from "@/features/ai/AiRuntime";
 import { Onboarding } from "@/features/ai/AiDisclosure";
+import { CalendarRuntime, CheckInBanner } from "@/features/calendar/CheckIn";
 import { RewardBanner, StreakBadge } from "@/features/rewards/Rewards";
 import { useHydrated, useStage } from "@/state/hooks";
 import { Toaster } from "@/ui/toast";
@@ -13,6 +14,7 @@ import s from "./shell.module.css";
 
 const NAV = [
   { href: "/focus", label: "Focus" },
+  { href: "/calendar", label: "Calendar" },
   { href: "/resources", label: "Resources" },
   { href: "/progress", label: "Progress" },
   { href: "/settings", label: "Settings" },
@@ -66,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className={s.main}>
+        {hydrated && <CheckInBanner />}
         {hydrated && <RewardBanner />}
         {children}
       </main>
@@ -74,6 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {hydrated && (
         <>
           <AiRuntime />
+          <CalendarRuntime />
           <Onboarding />
         </>
       )}

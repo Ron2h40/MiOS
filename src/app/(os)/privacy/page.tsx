@@ -34,7 +34,11 @@ export default function PrivacyPage() {
             <strong>Adult stage.</strong> Nothing is sent to AI at adult stage.
           </p>
           <p>
-            <strong>Medicine presets</strong> (coming soon) are for personal tracking only and are not medical advice.
+            <strong>Calendars.</strong> Calendar files you import stay in this browser and are never sent to AI. An item
+            you add to MiOS in the morning check-in becomes a normal task, and is treated like any other task.
+          </p>
+          <p>
+            <strong>Medicine presets</strong> are for personal tracking only and are not medical advice.
           </p>
         </div>
       </Card>

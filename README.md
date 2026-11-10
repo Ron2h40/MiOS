@@ -40,7 +40,7 @@ src/
 │   ├── interrupts.ts  A3 "what would this push back?"
 │   ├── deadlock.ts    A4 dependency graph, Tarjan SCC cycle detection
 │   ├── starvation.ts  A5 waiting-too-long flag
-│   ├── referee.ts     A6 protected time blocks (overnight, weekdays)
+│   ├── referee.ts     A6 protected time blocks (overnight, weekdays) and busy calendar time
 │   ├── timeGuess.ts   A9 estimate vs actual accuracy
 │   ├── modes.ts       Mode registry + A8 cross-mode load ("glue")
 │   ├── stages.ts      Assistant stage policy + progress gate (auto stage-up)
@@ -49,6 +49,7 @@ src/
 │   ├── resourcePresets.ts  C3 presets; medicine facts with FDA label sources
 │   ├── rewards.ts     D2/D5/D6 streak with freezes, period stats, records, when a drop is due
 │   ├── wrap.ts        D1/D3/D4 stats-drop cards with compliments built from real numbers
+│   ├── calendar.ts    E shared calendar: duplicate-proof merging, check-in status, busy time
 │   └── __tests__/
 ├── ai/              AI assistant logic shared by browser and server. No React.
 │   ├── types.ts       Request/response types per feature, pop-up question shape
@@ -58,14 +59,16 @@ src/
 │   ├── backgroundLog.ts  B8 triggers and event descriptions
 │   ├── mock.ts        Demo answers when no API key is set
 │   └── server/gemini.ts  Server-only Gemini client
+├── integrations/    Outside formats and services. No React.
+│   └── ics.ts         E1 .ics reader (ical.js: time zones, repeats) and writer (RFC 5545)
 ├── state/           Zustand stores: wire core rules to persistence + event log
 │   ├── store.ts       All mutations; every user decision is logged as an event
 │   ├── ai.ts          AI calls, background analysis log, pop-up stock and history
 │   └── hooks.ts       Derived read-side hooks (useStage, useGate, useDeadlocks …)
-├── features/        Screens, one folder per feature (tasks, ai, focus, progress, settings, shell)
+├── features/        Screens, one folder per feature (tasks, ai, calendar, focus, progress, resources, rewards, settings, shell)
 ├── ui/              Presentational primitives (Button, Card, Dialog, pills, toast)
 └── app/             Next.js routes only, thin wrappers around feature screens
-    ├── (os)/          Routes inside the app shell: /m/[mode], /resources, /progress, /settings, /privacy
+    ├── (os)/          Routes inside the app shell: /m/[mode], /calendar, /resources, /progress, /settings, /privacy
     ├── api/ai/        POST /api/ai: the single server entry point for AI
     └── focus/         A7 focus view, outside the shell so everything else is hidden
 ```

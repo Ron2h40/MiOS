@@ -4,6 +4,7 @@ import { useState } from "react";
 import { findProtectedConflicts, type Task } from "@/core";
 import type { PriorityResult, ScheduleResult } from "@/ai/types";
 import { callAi, toAiTask } from "@/state/ai";
+import { useBusy } from "@/state/hooks";
 import { useMios } from "@/state/store";
 import { formatTime } from "@/ui/format";
 import { Button } from "@/ui/primitives";
@@ -25,6 +26,7 @@ const todayAt = (hhmm: string): string => {
 export function QueueAssist({ queue }: { queue: Task[] }) {
   const tasks = useMios((st) => st.tasks);
   const settings = useMios((st) => st.settings);
+  const busy = useBusy();
   const resolveAiOrder = useMios((st) => st.resolveAiOrder);
   const resolveAiSchedule = useMios((st) => st.resolveAiSchedule);
 
@@ -65,8 +67,8 @@ export function QueueAssist({ queue }: { queue: Task[] }) {
     const iso = todayAt(hhmm);
     if (new Date(iso).getTime() < Date.now() - 60_000) return "Already past";
     const t = byId.get(taskId);
-    const conflict = findProtectedConflicts(iso, t?.estimateMinutes ?? settings.defaultEstimateMinutes, settings.protectedBlocks)[0];
-    return conflict ? `In ${conflict.block.label}` : null;
+    const conflict = findProtectedConflicts(iso, t?.estimateMinutes ?? settings.defaultEstimateMinutes, settings.protectedBlocks, busy)[0];
+    return conflict ? `In ${conflict.label}` : null;
   };
 
   const finishPlan = (apply: boolean) => {
