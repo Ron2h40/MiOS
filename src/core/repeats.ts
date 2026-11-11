@@ -6,7 +6,9 @@ import type { ISODateTime, Priority, Task, TaskModeId } from "./types";
  * that day), so every occurrence counts on its own for on-time rate, streak
  * and stats. Times repeat exactly: the planned start keeps its clock time and
  * the deadline keeps the same distance from the day it belongs to. A day that
- * needs something different is changed on that day's task.
+ * needs something different is changed on that day's task. The time guess is
+ * not copied: each occurrence is guessed fresh, so time-guess training (A9)
+ * only ever measures real guesses.
  */
 
 export type RepeatPattern =
@@ -19,7 +21,7 @@ export type RepeatPattern =
 
 export interface RepeatSeries {
   id: string;
-  template: { title: string; mode: TaskModeId; priority: Priority; estimateMinutes?: number };
+  template: { title: string; mode: TaskModeId; priority: Priority };
   pattern: RepeatPattern;
   /** Local "YYYY-MM-DD" of the first occurrence (the task the series was made from). */
   anchorDay: string;
@@ -50,7 +52,7 @@ export const anchorDayOf = (task: Pick<Task, "scheduledStart" | "deadline">, now
 
 /** Build a series from the first task's own times. */
 export const makeSeries = (
-  task: Pick<Task, "title" | "mode" | "priority" | "estimateMinutes" | "scheduledStart" | "deadline">,
+  task: Pick<Task, "title" | "mode" | "priority" | "scheduledStart" | "deadline">,
   pattern: RepeatPattern,
   opts: { id: string; now: number; until?: string },
 ): RepeatSeries => {
@@ -58,7 +60,7 @@ export const makeSeries = (
   const day = parseDay(anchorDay);
   return {
     id: opts.id,
-    template: { title: task.title, mode: task.mode, priority: task.priority, ...(task.estimateMinutes ? { estimateMinutes: task.estimateMinutes } : {}) },
+    template: { title: task.title, mode: task.mode, priority: task.priority },
     pattern,
     anchorDay,
     ...(task.scheduledStart ? { startMinutes: minutesIntoDay(task.scheduledStart, day) } : {}),
@@ -97,7 +99,6 @@ export interface Occurrence {
   title: string;
   mode: TaskModeId;
   priority: Priority;
-  estimateMinutes?: number;
   scheduledStart?: ISODateTime;
   deadline?: ISODateTime;
 }
@@ -107,7 +108,9 @@ export const occurrenceOn = (series: RepeatSeries, day: string): Occurrence => {
   return {
     seriesId: series.id,
     day,
-    ...series.template,
+    title: series.template.title,
+    mode: series.template.mode,
+    priority: series.template.priority,
     ...(series.startMinutes !== undefined ? { scheduledStart: atMinutes(d, series.startMinutes) } : {}),
     ...(series.deadlineMinutes !== undefined ? { deadline: atMinutes(d, series.deadlineMinutes) } : {}),
   };

@@ -322,6 +322,8 @@ export const useMios = create<MiosStore>()(
           };
           set((s) => ({ tasks: [...s.tasks, task] }));
           pushEvents({ type: "task_created", taskId: task.id, mode: task.mode, isInterrupt: task.isInterrupt });
+          // A9: a guess typed when the task is made is a guess too (B8 counts it as a cognitive action).
+          if (task.estimateMinutes) pushEvents({ type: "time_guess", taskId: task.id, minutes: task.estimateMinutes });
           if (input.protectedOverride) {
             pushEvents({ type: "referee_override", taskId: task.id, blockLabel: "protected time" });
           }
@@ -697,7 +699,6 @@ export const useMios = create<MiosStore>()(
               title: o.title,
               mode: o.mode,
               priority: o.priority,
-              estimateMinutes: o.estimateMinutes,
               scheduledStart: o.scheduledStart,
               deadline: o.deadline,
             });

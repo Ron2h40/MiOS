@@ -85,7 +85,7 @@ export const buildAgenda = (input: AgendaInput, fromDay: Date, days: number, now
         kind: "repeat",
         title: o.title,
         start: startMs,
-        ...(o.scheduledStart ? { end: startMs + (o.estimateMinutes ?? input.defaultEstimateMinutes) * 60_000 } : {}),
+        ...(o.scheduledStart ? { end: startMs + input.defaultEstimateMinutes * 60_000 } : {}),
         allDay: !o.scheduledStart && !o.deadline,
         mode: o.mode,
       });

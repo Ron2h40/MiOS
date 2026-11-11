@@ -48,7 +48,9 @@ describe("repeat patterns", () => {
   it("times repeat exactly: same clock start, same distance to the deadline", () => {
     const s = makeSeries(first, { kind: "daily" }, { id: "s", now: at(9) });
     const o = occurrenceOn(s, "2026-11-12");
-    expect(o).toMatchObject({ title: "Standup", mode: "job-hunt", priority: 2, estimateMinutes: 15, scheduledStart: local(12, 9), deadline: local(12, 17) });
+    expect(o).toMatchObject({ title: "Standup", mode: "job-hunt", priority: 2, scheduledStart: local(12, 9), deadline: local(12, 17) });
+    // The time guess is never copied: each day is guessed fresh (A9).
+    expect("estimateMinutes" in o).toBe(false);
   });
 
   it("a deadline days after the start stays days after (trash night, pickup morning)", () => {
