@@ -64,6 +64,33 @@ describe("calendar in the store", () => {
     expect(useMios.getState().tasks).toHaveLength(1);
   });
 
+  it("details the user fills in are used; anything left out comes from the item", () => {
+    useMios.getState().sortCalendarItems([
+      {
+        eventKey: "shift",
+        choice: "task",
+        scope: "once",
+        mode: "job-hunt",
+        details: { title: "Shift at the café", priority: 1, scheduledStart: today(12), estimateMinutes: 240, deadline: today(17) },
+      },
+    ]);
+    expect(useMios.getState().tasks[0]).toMatchObject({
+      title: "Shift at the café",
+      priority: 1,
+      estimateMinutes: 240,
+      deadline: today(17),
+      scheduledStart: today(12),
+      mode: "job-hunt",
+    });
+  });
+
+  it("a repeating item added every time keeps its mode and priority", () => {
+    useMios.getState().sortCalendarItems([
+      { eventKey: "gym|1", choice: "task", scope: "series", mode: "chores", details: { title: "Gym", priority: 2, scheduledStart: today(18) } },
+    ]);
+    expect(useMios.getState().calendarDecisions["series:gym"]).toMatchObject({ choice: "task", mode: "chores", priority: 2 });
+  });
+
   it("removing a calendar keeps tasks already made from it", () => {
     useMios.getState().sortCalendarItems([{ eventKey: "shift", choice: "task", scope: "once", mode: "chores" }]);
     const id = useMios.getState().calendarSources[0].id;

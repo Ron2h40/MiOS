@@ -142,6 +142,20 @@
   font-size: var(--text-sm);
 }
 
+.link {
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.details {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--separator);
+}
+
 .note {
   font-size: var(--text-xs);
   color: var(--text-secondary);

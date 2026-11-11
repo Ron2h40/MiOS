@@ -127,6 +127,16 @@ export interface CalendarAnswer {
   /** Repeating items: apply to every occurrence, or just this one. */
   scope: "once" | "series";
   mode: TaskModeId;
+  /** Optional: what the user filled in. Anything left out comes from the calendar item. */
+  details?: CalendarTaskDetails;
+}
+
+export interface CalendarTaskDetails {
+  title: string;
+  priority: Priority;
+  deadline?: ISODateTime;
+  scheduledStart?: ISODateTime;
+  estimateMinutes?: number;
 }
 
 interface Actions {
@@ -247,13 +257,20 @@ export const useMios = create<MiosStore>()(
        * defaults, same event log. The time comes from their own calendar, so
        * landing in protected time counts as approved (and is logged).
        */
-      const createFromEvent = (e: CalendarEvent, mode: TaskModeId): Task => {
-        const input = taskInputFromEvent(e);
+      const createFromEvent = (e: CalendarEvent, mode: TaskModeId, details?: CalendarTaskDetails, priority: Priority = 3): Task => {
+        const input = details
+          ? {
+              title: details.title.trim() || e.title,
+              deadline: details.deadline,
+              scheduledStart: details.scheduledStart,
+              estimateMinutes: details.estimateMinutes,
+            }
+          : taskInputFromEvent(e);
         const inProtected = taskProtectedConflicts(input, get().settings).length > 0;
         return get().addTask({
           ...input,
           mode,
-          priority: 3,
+          priority: details?.priority ?? priority,
           protectedOverride: inProtected || undefined,
           source: { kind: "calendar", eventKey: e.key, uid: e.uid },
         });
@@ -602,9 +619,9 @@ export const useMios = create<MiosStore>()(
             if (a.choice === "task") {
               // Never make a second task for the same item, however often this runs.
               const already = get().tasks.find((t) => t.source?.eventKey === e.key);
-              const task = already ?? createFromEvent(e, a.mode);
+              const task = already ?? createFromEvent(e, a.mode, a.details);
               if (!already) added++;
-              decisions[key] = { choice: "task", taskId: task.id, mode: a.mode, at };
+              decisions[key] = { choice: "task", taskId: task.id, mode: a.mode, priority: task.priority, at };
               if (scope === "series") decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
             } else {
               decisions[key] = { choice: "busy", ...(a.choice === "skip" ? { skipped: true } : {}), at };
@@ -631,8 +648,8 @@ export const useMios = create<MiosStore>()(
           const decisions: Record<string, CalendarDecision> = {};
           for (const e of due) {
             if (get().tasks.some((t) => t.source?.eventKey === e.key)) continue;
-            const mode = get().calendarDecisions[decisionKey.series(e)]?.mode ?? "daily-life";
-            const task = createFromEvent(e, mode);
+            const series = get().calendarDecisions[decisionKey.series(e)];
+            const task = createFromEvent(e, series?.mode ?? "daily-life", undefined, series?.priority);
             decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
           }
           if (due.length) set((s) => ({ calendarDecisions: { ...s.calendarDecisions, ...decisions } }));

@@ -1,5 +1,5 @@
 import { MINUTE_MS, toMs } from "./time";
-import type { ISODateTime, Task, TaskModeId } from "./types";
+import type { ISODateTime, Priority, Task, TaskModeId } from "./types";
 
 /**
  * Section E — the one shared calendar (A8 glue). Events come in from .ics
@@ -51,8 +51,9 @@ export interface CalendarDecision {
   skipped?: boolean;
   /** The task this item became. */
   taskId?: string;
-  /** For "always add" series: the mode each new occurrence goes into. */
+  /** For "always add" series: the mode and priority each new occurrence gets. */
   mode?: TaskModeId;
+  priority?: Priority;
   at: ISODateTime;
 }
 
