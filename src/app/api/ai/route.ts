@@ -5,7 +5,7 @@ import { AI_KINDS, type AiCall, type AiKind, type AiResponse } from "@/ai/types"
 import { parseResult } from "@/ai/validate";
 
 /**
- * POST /api/ai — the single server entry point for every AI feature.
+ * POST /api/ai: the single server entry point for every AI feature.
  * The browser never sees the API key. Without a key, demo answers are used.
  */
 

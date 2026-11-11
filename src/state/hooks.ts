@@ -108,7 +108,7 @@ export const useGate = (now: string) => {
   }, [events, stage, startedAt, now]);
 };
 
-/** C1 — resource levels now, today's curve, and what's still working. */
+/** C1: resource levels now, today's curve, and what's still working. */
 export const useResources = (now: string, day?: number) => {
   const entries = useMios((s) => s.resourceEntries);
   const tolerances = useMios((s) => s.tolerances);
@@ -126,13 +126,13 @@ export const useResources = (now: string, day?: number) => {
   }, [entries, tolerances, events, now, day]);
 };
 
-/** D5 — the current streak, derived from the event log. */
+/** D5: the current streak, derived from the event log. */
 export const useStreak = (now: string) => {
   const events = useMios((s) => s.events);
   return useMemo(() => computeStreak(events, Date.parse(now)), [events, now]);
 };
 
-/** D2 — stats drops waiting to be opened (milestones first, then week and month). */
+/** D2: stats drops waiting to be opened (milestones first, then week and month). */
 export const useDueRewards = (now: string) => {
   const events = useMios((s) => s.events);
   const celebrated = useMios((s) => s.celebrated);
@@ -158,7 +158,7 @@ export const makeWrap = (reward: Pick<DueReward, "key" | "kind" | "headline" | "
   });
 };
 
-/** E — calendar time the referee protects (unsorted or "Not MiOS" items). */
+/** E: calendar time the referee protects (unsorted or "Not MiOS" items). */
 export const useBusy = () => {
   const events = useMios((s) => s.calendarEvents);
   const decisions = useMios((s) => s.calendarDecisions);
@@ -166,7 +166,7 @@ export const useBusy = () => {
   return useMemo(() => busyIntervals(events, decisions, tasks), [events, decisions, tasks]);
 };
 
-/** E — today's calendar items still waiting for the morning check-in. */
+/** E: today's calendar items still waiting for the morning check-in. */
 export const usePendingToday = (now: string) => {
   const events = useMios((s) => s.calendarEvents);
   const decisions = useMios((s) => s.calendarDecisions);

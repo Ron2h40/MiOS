@@ -9,7 +9,7 @@
 /** ISO-8601 timestamp, e.g. "2026-11-05T14:00:00.000Z". */
 export type ISODateTime = string;
 
-/** A1 — every task is in exactly one process state. */
+/** A1: every task is in exactly one process state. */
 export type ProcessState = "ready" | "running" | "blocked" | "done";
 
 export const PROCESS_STATES: readonly ProcessState[] = ["ready", "running", "blocked", "done"];
@@ -21,7 +21,7 @@ export type Priority = 1 | 2 | 3 | 4;
 export type TaskModeId = "job-hunt" | "daily-life" | "chores";
 export type ModeId = TaskModeId | "general";
 
-/** A4 — what a task can be blocked by. */
+/** A4: what a task can be blocked by. */
 export type Blocker =
   | { id: string; kind: "task"; taskId: string }
   | { id: string; kind: "person"; label: string; resolved: boolean }
@@ -43,11 +43,11 @@ export interface Task {
   blockedBy: Blocker[];
   /** The task's order or start time came from an accepted AI suggestion (B1/B2). */
   aiPlanned?: boolean;
-  /** A3 — flagged as an incoming interrupt. */
+  /** A3: flagged as an incoming interrupt. */
   isInterrupt: boolean;
-  /** A9 — user's guess, in minutes, made before starting. */
+  /** A9: user's guess, in minutes, made before starting. */
   estimateMinutes?: number;
-  /** A9 — accumulated running time, in minutes. */
+  /** A9: accumulated running time, in minutes. */
   actualMinutes: number;
   /** Set while the task is Running; used to accumulate actual time. */
   runningSince?: ISODateTime;
@@ -56,7 +56,7 @@ export interface Task {
   /** When the task last changed state (used by starvation, A5). */
   stateChangedAt: ISODateTime;
   completedAt?: ISODateTime;
-  /** E1/E2 — the calendar item this task was made from, so it's never added twice. */
+  /** E1/E2: the calendar item this task was made from, so it's never added twice. */
   source?: { kind: "calendar"; eventKey: string; uid: string; recurring?: boolean };
   /** A repeating task made in MiOS: which series and which local day ("YYYY-MM-DD"). */
   repeat?: { seriesId: string; day: string };
@@ -64,7 +64,7 @@ export interface Task {
   oneOff?: boolean;
 }
 
-/** A6 — recurring protected time, e.g. sleep or gym. Times are local "HH:MM". */
+/** A6: recurring protected time, e.g. sleep or gym. Times are local "HH:MM". */
 export interface ProtectedBlock {
   id: string;
   label: string;
@@ -80,9 +80,9 @@ export const STAGES: readonly Stage[] = ["child", "teen", "adult"];
 
 export interface Settings {
   stage: Stage;
-  /** A6 — max tasks Running at once, 1 to 3. */
+  /** A6: max tasks Running at once, 1 to 3. */
   runningCap: 1 | 2 | 3;
-  /** A5 — days before a blocked or waiting task is flagged. */
+  /** A5: days before a blocked or waiting task is flagged. */
   starvationDays: number;
   protectedBlocks: ProtectedBlock[];
   /** Default estimate used for projections when a task has none. */

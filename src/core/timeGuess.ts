@@ -1,7 +1,7 @@
 import type { Task } from "./types";
 
 /**
- * A9 — time-guess training. The user guesses a task's time before starting;
+ * A9: time-guess training. The user guesses a task's time before starting;
  * MiOS logs the actual time and shows how close the guesses get.
  */
 

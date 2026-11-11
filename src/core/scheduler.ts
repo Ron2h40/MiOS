@@ -2,7 +2,7 @@ import { MINUTE_MS, toIso, toMs } from "./time";
 import type { ISODateTime, Task } from "./types";
 
 /**
- * A2 — the scheduler. The user orders tasks by priority and deadline.
+ * A2: the scheduler. The user orders tasks by priority and deadline.
  * Nothing here reorders on its own: sorting helpers return a proposed order
  * that the UI applies only when the user asks.
  */

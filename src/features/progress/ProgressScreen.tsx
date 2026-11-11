@@ -104,7 +104,7 @@ export function ProgressScreen() {
         )}
         {guesses.samples.length > 0 && (
           <p className={s.note}>
-            Latest: {guesses.samples.at(-1)!.title} — guessed {formatMinutes(guesses.samples.at(-1)!.estimate)}, took{" "}
+            Latest: {guesses.samples.at(-1)!.title}: guessed {formatMinutes(guesses.samples.at(-1)!.estimate)}, took{" "}
             {formatMinutes(guesses.samples.at(-1)!.actual)}.
           </p>
         )}

@@ -7,7 +7,7 @@ import { saveCardImage } from "./cardImage";
 import s from "./rewards.module.css";
 
 /**
- * D1 — the stats drop: full-screen cards, one stat each.
+ * D1 stats drop: full-screen cards, one stat each.
  * Tap right or press → for next, tap left or ← for back, Esc to close.
  */
 export function WrapViewer({ wrap, onClose }: { wrap: Wrap; onClose: () => void }) {

@@ -2,7 +2,7 @@ import { MINUTE_MS, type CalendarEvent, type Settings, type Task } from "@/core"
 import { DUE_MARKER_MINUTES } from "../ics";
 
 /**
- * E2 — pure rules for Google Calendar sync: turning Google events into MiOS
+ * E2: pure rules for Google Calendar sync, turning Google events into MiOS
  * calendar items, and deciding what MiOS writes back. No network here, so
  * every rule is unit-tested.
  *

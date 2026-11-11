@@ -3,7 +3,7 @@ import { minutesBetween } from "./time";
 import type { ISODateTime, Task } from "./types";
 
 /**
- * A3 — interrupts. When the user flags an incoming item as an interrupt,
+ * A3: interrupts. When the user flags an incoming item as an interrupt,
  * MiOS shows what running it first would push back. It never reorders tasks
  * on its own; the user decides.
  */

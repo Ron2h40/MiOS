@@ -95,7 +95,7 @@ export function ResourcesScreen() {
   );
 }
 
-/** C2 + C3 — one-tap presets, sleep, and logging at another time. */
+/** C2 + C3: one-tap presets, sleep, and logging at another time. */
 function LogCard() {
   const logResource = useMios((st) => st.logResource);
   const toast = useToast((st) => st.show);
@@ -201,7 +201,7 @@ function HistoryCard({ dayStart }: { dayStart: number }) {
   );
 }
 
-/** C3 — the medicine screen: disclaimer, and every number's source. */
+/** C3 medicine screen: disclaimer, and every number's source. */
 function MedicineCard() {
   const meds = RESOURCE_PRESETS.filter((p) => p.kind === "medicine" || p.facts);
   return (
@@ -254,7 +254,7 @@ function Fact({ label, fact }: { label: string; fact: CurveFact }) {
   );
 }
 
-/** C4 — personal tolerance for any item. */
+/** C4: personal tolerance for any item. */
 function ToleranceCard() {
   const tolerances = useMios((st) => st.tolerances);
   const setTolerance = useMios((st) => st.setTolerance);

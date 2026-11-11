@@ -28,7 +28,7 @@ import {
 import { useMios } from "./store";
 
 /**
- * E2 — one Google Calendar sync run, and its live status. Order matters:
+ * E2: one Google Calendar sync run, and its live status. Order matters:
  *  1. make sure the MiOS calendar exists
  *  2. read changes the user made to MiOS events in Google (moves, deletes)
  *  3. write MiOS's tasks to the MiOS calendar

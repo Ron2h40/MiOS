@@ -1,4 +1,4 @@
-/* Section C — resource charts. Series colors come from --series-* tokens. */
+/* Section C: resource charts. Series colors come from --series-* tokens. */
 
 .focus {
   --c: var(--series-focus);

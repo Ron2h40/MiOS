@@ -2,7 +2,7 @@ import type { MiosEvent } from "./events";
 import type { ISODateTime } from "./types";
 
 /**
- * Section C — resource charts (Focus, Energy, Hydration).
+ * Section C: resource charts (Focus, Energy, Hydration).
  *
  * Each logged item adds an effect that follows a curve over time: it rises to
  * a peak and fades out. A resource's level at any moment is the sum of every
@@ -60,7 +60,7 @@ export interface ResourceEntry {
   hours?: number;
 }
 
-/** C4 — personal tolerance: scale how strong and how long an item works for you. */
+/** C4 personal tolerance: scale how strong and how long an item works for you. */
 export interface Tolerance {
   strength: number;
   duration: number;
@@ -112,7 +112,7 @@ const sleepBaseline = (entry: ResourceEntry, t: number, tol: Tolerance): Partial
 };
 
 // ---------------------------------------------------------------------------
-// C5 — task cost
+// C5: task cost
 // ---------------------------------------------------------------------------
 
 /** Points drained per hour while a task is Running. */

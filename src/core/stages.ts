@@ -68,8 +68,8 @@ export interface GateThresholds {
 
 export const GATES: Record<"child" | "teen", GateThresholds> = {
   child: { tasksDone: 15, minOverrideRate: 0.2, minOnTimeRate: 0.6, minDays: 7 },
-  // Pop-up questions are deliberately NOT a signal: answering
-  // one means the user is already reaching for AI. They only add friction.
+  // Pop-up questions are deliberately not a signal: answering one means the
+  // user is already reaching for AI. They only add friction.
   teen: { tasksDone: 60, minNoAiDecisionRate: 0.7, minOnTimeRate: 0.75, minDays: 21 },
 };
 
@@ -154,8 +154,8 @@ export const evaluateGate = (
     signals.push(rateSignal("noAiDecisions", "Decisions made without the AI button", own, d.length, g.minNoAiDecisionRate));
   }
 
-  // Tasks with no deadline are their own type: they are
-  // neither on time nor late, so only deadline tasks feed this rate.
+  // Tasks with no deadline are their own type: neither on time nor late, so
+  // only deadline tasks feed this rate.
   const own = completed.filter((e) => e.ownChoice && e.onTime !== null);
   const onTime = own.filter((e) => e.onTime).length;
   signals.push(rateSignal("onTime", "Your deadline tasks finished on time", onTime, own.length, g.minOnTimeRate));

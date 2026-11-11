@@ -4,7 +4,7 @@ import type { ISODateTime, ModeId, Task, TaskModeId } from "./types";
 
 /**
  * Modes are focused views of one shared OS. To add a mode, add an entry here
- * and to `TaskModeId` in types.ts — nothing else needs to change.
+ * and to `TaskModeId` in types.ts: nothing else needs to change.
  */
 export interface ModeDefinition {
   id: ModeId;
@@ -39,7 +39,7 @@ export const tasksInMode = (tasks: readonly Task[], mode: ModeId): Task[] =>
   mode === "general" ? [...tasks] : tasks.filter((t) => t.mode === mode);
 
 /**
- * A8 — glue. Every mode draws on the same day, so each mode shows what the
+ * A8: glue. Every mode draws on the same day, so each mode shows what the
  * others are costing. This is the per-mode load summary.
  */
 export interface ModeLoad {

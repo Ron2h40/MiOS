@@ -10,8 +10,8 @@ import { TaskFields, type TaskDraft } from "./TaskFields";
 import s from "./tasks.module.css";
 
 /**
- * A9 — guess the time before starting, so MiOS can show how close guesses get.
- * B4 — at child and teen stage, AI gives a second opinion after the guess.
+ * A9: guess the time before starting, so MiOS can show how close guesses get.
+ * B4: at child and teen stage, AI gives a second opinion after the guess.
  */
 export function StartDialog({
   task,
@@ -64,7 +64,7 @@ export function StartDialog({
   );
 }
 
-/** A4 — mark a task as blocked by another task, a person or an event. */
+/** A4: mark a task as blocked by another task, a person or an event. */
 export function BlockerDialog({ task, onClose }: { task: Task | null; onClose: () => void }) {
   const tasks = useMios((st) => st.tasks);
   const addBlocker = useMios((st) => st.addBlocker);

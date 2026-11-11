@@ -2,7 +2,7 @@ import { daysBetween } from "./time";
 import type { ISODateTime, Settings, Task } from "./types";
 
 /**
- * A5 — starvation flag. A task that has sat Blocked or waiting in Ready past
+ * A5: starvation flag. A task that has sat Blocked or waiting in Ready past
  * the user's threshold gets flagged (e.g. a follow-up waiting 14 days).
  */
 export interface StarvationFlag {

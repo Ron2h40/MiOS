@@ -2,7 +2,7 @@ import { MINUTE_MS, toMs } from "./time";
 import type { ISODateTime, Priority, Task, TaskModeId } from "./types";
 
 /**
- * Section E — the one shared calendar (A8 glue). Events come in from .ics
+ * Section E: the one shared calendar (A8 glue). Events come in from .ics
  * files or Google Calendar. Each morning the user sorts today's items: an
  * item either becomes a normal MiOS task, or it's busy time the referee
  * protects. Nothing here talks to a file or a network; it's plain rules.

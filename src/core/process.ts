@@ -3,7 +3,7 @@ import { minutesBetween } from "./time";
 import type { ISODateTime, ProcessState, Settings, Task } from "./types";
 
 /**
- * A1 — process states and the moves allowed between them.
+ * A1: process states and the moves allowed between them.
  *
  *   ready ⇄ running → done
  *     ↘     ↓        ↙ (reopen)
@@ -55,7 +55,7 @@ export const transition = (task: Task, to: ProcessState, now: ISODateTime): Resu
   });
 };
 
-/** A6 — the referee's cap on how many tasks may run at once. */
+/** A6: the referee's cap on how many tasks may run at once. */
 export const runningCount = (tasks: readonly Task[]): number =>
   tasks.filter((t) => t.state === "running").length;
 

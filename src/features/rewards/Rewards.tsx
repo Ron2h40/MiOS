@@ -9,7 +9,7 @@ import { WrapViewer } from "./WrapViewer";
 import s from "./rewards.module.css";
 
 /**
- * D2 — offers a stats drop when one is due. Never pops up on its own and
+ * D2: offers a stats drop when one is due. Never pops up on its own and
  * never after a single task: the user opens it when they like.
  */
 export function RewardBanner() {
@@ -52,7 +52,7 @@ export function RewardBanner() {
   );
 }
 
-/** D5 — streak in the header. */
+/** D5: streak in the header. */
 export function StreakBadge() {
   const now = useNow(60_000);
   const streak = useStreak(now);
@@ -107,7 +107,7 @@ export function StreakCard() {
   );
 }
 
-/** D1 — reopen past stats drops, or preview this week so far. */
+/** D1: reopen past stats drops, or preview this week so far. */
 export function PastWraps() {
   const wraps = useMios((st) => st.wraps);
   const [open, setOpen] = useState<Wrap | null>(null);

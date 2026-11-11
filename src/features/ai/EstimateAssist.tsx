@@ -13,7 +13,7 @@ import s from "./ai.module.css";
 const EFFORT_LABEL = { low: "Light load", medium: "Medium load", high: "Heavy load" } as const;
 
 /**
- * B4 — task load estimate when starting a task. The user always guesses
+ * B4: task load estimate when starting a task. The user always guesses
  * first (A9 time-guess training); the AI estimate is a second opinion.
  * Child stage: shown automatically once there is a guess. Teen: on request.
  */

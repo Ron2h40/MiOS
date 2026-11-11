@@ -98,19 +98,19 @@ interface Data {
   settings: Settings;
   /** When this person started using MiOS (fallback for "days at stage"). */
   startedAt: ISODateTime;
-  /** C2 — what the user logged (food, water, sleep, medicine). */
+  /** C2: what the user logged (food, water, sleep, medicine). */
   resourceEntries: ResourceEntry[];
-  /** C4 — personal tolerance per item id. */
+  /** C4: personal tolerance per item id. */
   tolerances: Record<string, Tolerance>;
-  /** D2 — rewards already shown (key → when), so each fires once. */
+  /** D2: rewards already shown (key → when), so each fires once. */
   celebrated: Record<string, string>;
-  /** D1 — past stats drops, newest first, to reopen from Progress. */
+  /** D1: past stats drops, newest first, to reopen from Progress. */
   wraps: Wrap[];
-  /** E1/E2 — imported calendars, their events, and the morning check-in answers. */
+  /** E1/E2: imported calendars, their events, and the morning check-in answers. */
   calendarSources: CalendarSource[];
   calendarEvents: CalendarEvent[];
   calendarDecisions: Record<string, CalendarDecision>;
-  /** E2 — Google Calendar sync bookkeeping. The access token is never stored. */
+  /** E2: Google Calendar sync bookkeeping. The access token is never stored. */
   google: GoogleState;
   /** Repeating tasks made in MiOS. */
   repeats: RepeatSeries[];
@@ -184,19 +184,19 @@ interface Actions {
   importData(json: string): Result<void>;
   loadSample(tasks: Task[]): void;
 
-  /** C2 — log an item now or at another time. Sleep takes hours slept. */
+  /** C2: log an item now or at another time. Sleep takes hours slept. */
   logResource(itemId: string, opts?: { at?: ISODateTime; hours?: number }): ResourceEntry;
   removeResource(entryId: string): void;
-  /** C4 — set or clear (null) an item's personal tolerance. */
+  /** C4: set or clear (null) an item's personal tolerance. */
   setTolerance(itemId: string, tolerance: Tolerance | null): void;
 
-  /** D1/D2 — the user opened a stats drop: remember it and never offer it again. */
+  /** D1/D2: the user opened a stats drop, so remember it and never offer it again. */
   saveWrap(wrap: Wrap): void;
 
-  /** E1 — merge a parsed .ics file. Re-importing the same file changes nothing. */
+  /** E1: merge a parsed .ics file. Re-importing the same file changes nothing. */
   importCalendar(input: { fileName: string; name?: string; events: CalendarEvent[] }): MergeReport;
   removeCalendar(sourceId: string): void;
-  /** E — the morning check-in: each item becomes a task or busy time. */
+  /** E: the morning check-in. Each item becomes a task or busy time. */
   sortCalendarItems(answers: CalendarAnswer[]): { added: number };
   /** Ask about an item (or a whole repeating series) again. */
   forgetCalendarDecision(key: string): void;
@@ -207,9 +207,9 @@ interface Actions {
   /** End a series. Tasks already made stay. */
   stopRepeating(seriesId: string): void;
 
-  /** E2 — calendar items read from Google. `full` replaces that calendar's items. */
+  /** E2: calendar items read from Google. `full` replaces that calendar's items. */
   applyGoogleItems(input: { sourceId: string; name: string; items: CalendarEvent[]; removedIds: string[]; full: boolean }): void;
-  /** E2 — the user moved or deleted MiOS blocks in Google. Tasks are never deleted. */
+  /** E2: the user moved or deleted MiOS blocks in Google. Tasks are never deleted. */
   applyGoogleTaskChanges(moves: { taskId: string; start: ISODateTime }[], cleared: string[]): void;
   updateGoogle(patch: Partial<GoogleState> | ((g: GoogleState) => Partial<GoogleState>)): void;
   /** Stop syncing: Google's items leave MiOS; tasks stay. */

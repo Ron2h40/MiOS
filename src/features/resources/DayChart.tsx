@@ -15,7 +15,7 @@ const PLOT_H = H - PAD.top - PAD.bottom;
 const DAY_MS = 24 * 3_600_000;
 
 /**
- * C1 — one day of Focus, Energy and Hydration on one 0–100 axis.
+ * C1: one day of Focus, Energy and Hydration on one 0–100 axis.
  * Solid up to now, dashed after (what today's logged items will still do).
  * Hover or drag for exact values; direct labels sit at each line's end.
  */

@@ -2,7 +2,7 @@ import type { ResourceKey } from "./resources";
 import type { DueReward, PeriodStats, StreakState } from "./rewards";
 
 /**
- * D1 + D3 + D4 — build a stats drop: one stat per card, with a compliment
+ * D1, D3, D4. Builds a stats drop: one stat per card, with a compliment
  * first and last. Compliments are fixed templates filled with real numbers
  * (facts over flattery), so they work at every stage, including adult where
  * there is no AI. Thinking without AI is weighted highest.

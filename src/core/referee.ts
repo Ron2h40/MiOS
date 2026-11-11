@@ -3,7 +3,7 @@ import { MINUTE_MS, parseClock, toMs } from "./time";
 import type { ISODateTime, ProtectedBlock, Settings, Task } from "./types";
 
 /**
- * A6 — the referee. Protected time blocks (sleep, gym, …) and busy calendar
+ * A6: the referee. Protected time blocks (sleep, gym, …) and busy calendar
  * time (E1/E2: classes, shifts) can't be scheduled into without the user's
  * approval. The running cap lives in `process.ts`.
  *

@@ -1,7 +1,7 @@
 import type { ResourceItem, SourceRef } from "./resources";
 
 /**
- * C3 — one-tap presets.
+ * C3: one-tap presets.
  *
  * Medicine shapes are built from FDA prescribing information on DailyMed
  * (read 2026-11-05). Labels give time to peak and sometimes how long effects

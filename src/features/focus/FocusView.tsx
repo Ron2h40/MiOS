@@ -19,7 +19,7 @@ const clock = (totalSeconds: number) => {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-/** A7 — the illusionist: one task on screen, everything else hidden. */
+/** A7, the illusionist: one task on screen, everything else hidden. */
 export function FocusView() {
   const hydrated = useHydrated();
   const params = useSearchParams();

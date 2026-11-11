@@ -3,7 +3,7 @@ import { levelsAt, RESOURCE_KEYS, type ResourceInputs, type ResourceKey } from "
 import type { Stage } from "./types";
 
 /**
- * Section D — rewards: streaks, period stats, personal records, and when a
+ * Section D, rewards: streaks, period stats, personal records, and when a
  * stats drop is due. Everything is derived from the event log, so nothing
  * here can drift out of sync with what the user actually did.
  */

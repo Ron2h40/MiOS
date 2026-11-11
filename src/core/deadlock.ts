@@ -1,7 +1,7 @@
 import type { Task } from "./types";
 
 /**
- * A4 — deadlock check. Tasks can be "blocked by" other tasks; MiOS keeps the
+ * A4: deadlock check. Tasks can be "blocked by" other tasks; MiOS keeps the
  * dependency map, finds cycles, shows the loop, and asks the user to break
  * one link. It never breaks a link itself.
  */

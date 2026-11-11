@@ -1,7 +1,7 @@
 import type { Wrap, WrapCard } from "@/core";
 
 /**
- * D7 — save a stats card as a PNG, drawn in the browser. Nothing is uploaded;
+ * D7: save a stats card as a PNG, drawn in the browser. Nothing is uploaded;
  * the image only contains what's on the card.
  */
 

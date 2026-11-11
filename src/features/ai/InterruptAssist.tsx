@@ -10,7 +10,7 @@ import { AiCard, AiHelpButton, type AiStatus } from "./AiHelp";
 import s from "./ai.module.css";
 
 /**
- * B3 — interrupt warning. AI warns when an interrupt hurts a deadline; it
+ * B3: interrupt warning. AI warns when an interrupt hurts a deadline; it
  * never picks for the user. Child: shown automatically. Teen: on request.
  * Calls `onUsed` once AI was involved, so the decision is logged as made with AI.
  */

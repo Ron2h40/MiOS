@@ -1,8 +1,8 @@
 /**
- * B8 — background analysis log: when it runs and what it sends.
+ * B8 background analysis log: when it runs and what it sends.
  *
- * It runs whenever the user does a cognitive action or uses
- * AI, at child and teen stage only. Bursts of actions are grouped into one
+ * It runs whenever the user does a cognitive action or uses AI, at child and
+ * teen stage only. Bursts of actions are grouped into one
  * call so the free AI tier isn't used up.
  */
 import type { MiosEvent, Stage, Task } from "@/core";

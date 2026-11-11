@@ -89,7 +89,7 @@ export interface EstimateResult {
   why: string;
 }
 
-/** B8 — background analysis of recent activity. */
+/** B8: background analysis of recent activity. */
 export interface AnalyzeRequest {
   triggers: string[];
   recentEvents: string[];

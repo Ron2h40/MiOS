@@ -10,7 +10,7 @@ import {
 } from "@/core";
 
 /**
- * E1 — .ics import and export (RFC 5545). Reading uses ical.js, which handles
+ * E1: .ics import and export (RFC 5545). Reading uses ical.js, which handles
  * time zones and repeat rules. Writing is small enough to do by hand.
  */
 

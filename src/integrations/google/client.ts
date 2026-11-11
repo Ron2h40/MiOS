@@ -1,7 +1,7 @@
 import type { GEvent } from "./mapping";
 
 /**
- * E2 — talking to Google from the browser. Sign-in uses Google Identity
+ * E2: talking to Google from the browser. Sign-in uses Google Identity
  * Services' token model: no server, no client secret, no refresh token. The
  * access token lives in memory only and is never saved.
  */

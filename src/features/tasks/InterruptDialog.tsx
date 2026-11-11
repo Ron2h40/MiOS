@@ -9,7 +9,7 @@ import { Button, Dialog, Empty } from "@/ui/primitives";
 import s from "./tasks.module.css";
 
 /**
- * A3 — shows what an interrupt would push back. MiOS never reorders on its
+ * A3: shows what an interrupt would push back. MiOS never reorders on its
  * own: the user picks "run it first" or "add to queue".
  */
 export function InterruptDialog({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {

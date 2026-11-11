@@ -6,7 +6,7 @@ import { formatMinutes } from "@/ui/format";
 import { Button, Card } from "@/ui/primitives";
 import s from "./tasks.module.css";
 
-/** A4 — show each loop and ask the user to break one link. */
+/** A4: show each loop and ask the user to break one link. */
 export function DeadlockPanel({ cycles }: { cycles: DeadlockCycle[] }) {
   const tasks = useMios((st) => st.tasks);
   const removeBlocker = useMios((st) => st.removeBlocker);
@@ -42,7 +42,7 @@ export function DeadlockPanel({ cycles }: { cycles: DeadlockCycle[] }) {
   );
 }
 
-/** A8 — glue: what every mode is costing today, so one mode sees the others. */
+/** A8 glue: what every mode is costing today, so one mode sees the others. */
 export function ModeLoadPanel({ load, current }: { load: ModeLoad[]; current: ModeId }) {
   const max = Math.max(60, ...load.map((l) => l.plannedMinutes));
   return (
@@ -67,7 +67,7 @@ export function ModeLoadPanel({ load, current }: { load: ModeLoad[]; current: Mo
   );
 }
 
-/** A5 — tasks waiting too long. */
+/** A5: tasks waiting too long. */
 export function StarvationPanel({ flags, days }: { flags: StarvationFlag[]; days: number }) {
   if (!flags.length) return null;
   return (

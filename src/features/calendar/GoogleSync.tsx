@@ -18,7 +18,7 @@ const ago = (iso: string, now: string) => {
   return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
 
-/** E2 — connect, sync, disconnect. */
+/** E2: connect, sync, disconnect. */
 export function GoogleCard() {
   const now = useNow(30_000);
   const google = useMios((st) => st.google);

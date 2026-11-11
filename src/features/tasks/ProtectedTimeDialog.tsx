@@ -4,7 +4,7 @@ import type { ProtectedConflict } from "@/core";
 import { formatTime } from "@/ui/format";
 import { Button, Dialog } from "@/ui/primitives";
 
-/** A6 — the referee asks before anything lands in protected or busy calendar time. */
+/** A6: the referee asks before anything lands in protected or busy calendar time. */
 export function ProtectedTimeDialog({
   conflicts,
   onApprove,
