@@ -60,6 +60,8 @@ src/
 │   ├── rewards.ts     D2/D5/D6 streak with freezes, period stats, records, when a drop is due
 │   ├── wrap.ts        D1/D3/D4 stats-drop cards with compliments built from real numbers
 │   ├── calendar.ts    E shared calendar: duplicate-proof merging, check-in status, busy time
+│   ├── repeats.ts     Repeating tasks: patterns, exact times, one task per day
+│   ├── agenda.ts      What's on each day, for every calendar view
 │   └── __tests__/
 ├── ai/              AI assistant logic shared by browser and server. No React.
 │   ├── types.ts       Request/response types per feature, pop-up question shape

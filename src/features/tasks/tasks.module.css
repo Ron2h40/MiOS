@@ -342,3 +342,41 @@
     justify-content: flex-start;
   }
 }
+
+/* Repeat */
+.dayChips {
+  display: flex;
+  gap: 6px;
+}
+
+.dayChip {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--separator);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.dayChip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.hintText {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.repeatLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}

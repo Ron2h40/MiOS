@@ -9,6 +9,7 @@ import {
   taskInputFromEvent,
   taskProtectedConflicts,
   type CalendarEvent,
+  type RepeatTiming,
   type TaskModeId,
 } from "@/core";
 import { useNow, usePendingToday } from "@/state/hooks";
@@ -67,10 +68,22 @@ type Row = {
   /** Optional details the user filled in; without them the task uses the item's own. */
   draft?: TaskDraft;
   showDetails?: boolean;
+  /** Repeating items: what the item's time means for each task. */
+  timing: RepeatTiming;
 };
 
 /** The task form, prefilled from the calendar item. */
-const draftFrom = (e: CalendarEvent, mode: TaskModeId): TaskDraft => ({ mode, priority: 3, ...taskInputFromEvent(e) });
+const draftFrom = (e: CalendarEvent, mode: TaskModeId, timing: RepeatTiming): TaskDraft => ({
+  mode,
+  priority: 3,
+  ...taskInputFromEvent(e, timing),
+});
+
+const TIMINGS: { id: RepeatTiming; label: string }[] = [
+  { id: "start", label: "Do it at that time" },
+  { id: "due", label: "It's due at that time" },
+  { id: "both", label: "Do it then, due by the end" },
+];
 
 /** Every unsorted item for today, one row each, all in one window. */
 export function CheckInDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -88,7 +101,7 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [lastMode, setLastMode] = useState<TaskModeId>("daily-life");
 
-  const row = (e: CalendarEvent): Row => rows[e.key] ?? { mode: lastMode, series: true };
+  const row = (e: CalendarEvent): Row => rows[e.key] ?? { mode: lastMode, series: true, timing: "start" };
   const update = (e: CalendarEvent, patch: Partial<Row>) => {
     if (patch.mode) setLastMode(patch.mode);
     setRows((r) => ({ ...r, [e.key]: { ...row(e), ...patch } }));
@@ -106,6 +119,7 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
         choice: r.choice ?? "skip",
         scope: r.series ? "series" : "once",
         mode: d?.mode ?? r.mode,
+        ...(e.recurring && r.series ? { timing: r.timing } : {}),
         ...(d ? { details: { title: d.title, priority: d.priority, deadline: d.deadline, scheduledStart: d.scheduledStart, estimateMinutes: d.estimateMinutes } } : {}),
       };
     });
@@ -143,7 +157,8 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
       <ul className={s.checkList}>
         {items.map((e) => {
           const r = row(e);
-          const input = taskInputFromEvent(e);
+          const repeating = e.recurring && r.series && r.choice === "task";
+          const input = taskInputFromEvent(e, repeating ? r.timing : "start");
           const minutes = Math.max(1, (Date.parse(e.end) - Date.parse(e.start)) / MINUTE_MS);
           const clash =
             r.choice !== "task"
@@ -195,7 +210,9 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
                     type="button"
                     className={s.link}
                     aria-expanded={!!r.showDetails}
-                    onClick={() => update(e, { showDetails: !r.showDetails, draft: r.draft ?? draftFrom(e, r.mode) })}
+                    onClick={() =>
+                      update(e, { showDetails: !r.showDetails, draft: r.draft ?? draftFrom(e, r.mode, repeating ? r.timing : "start") })
+                    }
                   >
                     {r.showDetails ? "Hide details" : r.draft ? "Edit details" : "Add details"}
                   </button>
@@ -207,11 +224,42 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
                   </label>
                 )}
               </div>
+              {repeating && !e.allDay && (
+                <div className={s.choices} role="radiogroup" aria-label="How do you want it repeated?">
+                  <span className={`${s.inline} ${s.question}`}>How do you want it repeated?</span>
+                  {TIMINGS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={r.timing === t.id}
+                      className={s.choice}
+                      onClick={() => {
+                        const fresh = taskInputFromEvent(e, t.id);
+                        update(e, {
+                          timing: t.id,
+                          ...(r.draft ? { draft: { ...r.draft, scheduledStart: fresh.scheduledStart, deadline: fresh.deadline } } : {}),
+                        });
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {repeating && (
+                <span className={s.note}>
+                  ⚠︎ Times follow your calendar, including days it moves. If one day needs a different start or deadline,
+                  change that day&apos;s task when it shows up.
+                </span>
+              )}
               {r.choice === "task" && r.showDetails && r.draft && (
                 <div className={`${tasks.form} ${s.details}`}>
                   <TaskFields draft={r.draft} onChange={(draft) => update(e, { draft, mode: draft.mode })} showMode />
                   {e.recurring && r.series && (
-                    <span className={s.note}>Mode and priority apply every time it repeats. The rest is for today&apos;s task.</span>
+                    <span className={s.note}>
+                      Mode, priority and how it repeats apply every time. The rest is for today&apos;s task.
+                    </span>
                   )}
                 </div>
               )}
@@ -233,11 +281,11 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
 export function CalendarRuntime() {
   const now = useNow(60_000);
   const day = dayKey(Date.parse(now));
-  const run = useMios((st) => st.runCalendarDaily);
+  const run = useMios((st) => st.runDaily);
   const toast = useToast((t) => t.show);
   useEffect(() => {
     const n = run();
-    if (n) toast(`Added ${n} repeating ${n === 1 ? "item" : "items"} from your calendar to today.`);
+    if (n) toast(`Added ${n} repeating ${n === 1 ? "task" : "tasks"} to today.`);
   }, [day, run, toast]);
   return null;
 }

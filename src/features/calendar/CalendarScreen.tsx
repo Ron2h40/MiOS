@@ -1,26 +1,18 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { calendarStatus, dayKey, getMode, type CalendarEvent, type MergeReport } from "@/core";
+import { dayKey, getMode, type CalendarEvent, type MergeReport } from "@/core";
 import { buildIcs, parseIcs } from "@/integrations/ics";
-import { useNow, usePendingToday } from "@/state/hooks";
+import { useAgenda, useNow, usePendingToday } from "@/state/hooks";
 import { useMios } from "@/state/store";
-import { formatTime } from "@/ui/format";
-import { Button, Card, Empty, Pill } from "@/ui/primitives";
+import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
-import { CheckInDialog, eventTime } from "./CheckIn";
+import { DayList } from "./AgendaList";
+import { CheckInDialog } from "./CheckIn";
 import { GoogleCard } from "./GoogleSync";
 import s from "./calendar.module.css";
 
 const DAYS_SHOWN = 7;
-
-type AgendaItem = {
-  id: string;
-  sort: number;
-  time: string;
-  title: string;
-  tag: { label: string; tone: "neutral" | "tag" | "warn" };
-};
 
 const reportLine = (name: string, r: MergeReport) => {
   const here = r.duplicates + r.alreadyInMios;
@@ -48,42 +40,9 @@ export function CalendarScreen() {
   const [checkIn, setCheckIn] = useState(false);
   const [withDeadlines, setWithDeadlines] = useState(true);
 
-  const days = useMemo(() => {
-    const base = new Date(Date.parse(now));
-    return Array.from({ length: DAYS_SHOWN }, (_, i) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + i));
-  }, [now]);
-
-  const agenda = useMemo(() => {
-    const byDay = new Map<string, AgendaItem[]>(days.map((d) => [dayKey(d.getTime()), []]));
-    const put = (ms: number, item: AgendaItem) => byDay.get(dayKey(ms))?.push(item);
-
-    for (const t of tasks) {
-      if (t.state === "done") continue;
-      if (t.scheduledStart) {
-        const ms = Date.parse(t.scheduledStart);
-        put(ms, { id: `s-${t.id}`, sort: ms, time: formatTime(t.scheduledStart), title: t.title, tag: { label: `Task · ${getMode(t.mode).label}`, tone: "tag" } });
-      }
-      if (t.deadline) {
-        const ms = Date.parse(t.deadline);
-        put(ms, { id: `d-${t.id}`, sort: ms, time: formatTime(t.deadline), title: t.title, tag: { label: "Due", tone: "warn" } });
-      }
-    }
-    for (const e of events) {
-      const status = calendarStatus(e, decisions, tasks);
-      if (status.kind === "task") continue; // The task itself is listed.
-      const ms = Date.parse(e.start);
-      const tag: AgendaItem["tag"] =
-        status.kind === "pending"
-          ? { label: "Not sorted", tone: "warn" }
-          : status.kind === "auto-task"
-            ? { label: "Added each time", tone: "tag" }
-            : e.allDay || e.free
-              ? { label: "Free", tone: "neutral" }
-              : { label: "Busy", tone: "neutral" };
-      put(ms, { id: `e-${e.key}`, sort: e.allDay ? ms - 1 : ms, time: eventTime(e), title: e.title, tag });
-    }
-    return days.map((d) => ({ day: d, items: (byDay.get(dayKey(d.getTime())) ?? []).sort((a, b) => a.sort - b.sort) }));
-  }, [days, tasks, events, decisions]);
+  const today = useMemo(() => new Date(Date.parse(now)), [now]);
+  const agenda = useAgenda(today, DAYS_SHOWN, now);
+  const days = [...agenda.entries()];
 
   const onFiles = async (ev: ChangeEvent<HTMLInputElement>) => {
     const files = [...(ev.target.files ?? [])];
@@ -149,27 +108,19 @@ export function CalendarScreen() {
         }
       >
         <div className={s.days}>
-          {agenda.map(({ day, items }, i) => (
-            <section key={day.toISOString()} aria-label={day.toDateString()}>
-              <h3 className={s.dayName}>
-                {i === 0 ? "Today" : i === 1 ? "Tomorrow" : day.toLocaleDateString(undefined, { weekday: "long" })} ·{" "}
-                {day.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-              </h3>
-              {items.length ? (
-                <ul className={s.items}>
-                  {items.map((it) => (
-                    <li key={it.id} className={s.item}>
-                      <span className={s.time}>{it.time}</span>
-                      <span className={s.title}>{it.title}</span>
-                      <Pill tone={it.tag.tone}>{it.tag.label}</Pill>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={s.empty}>Nothing planned.</p>
-              )}
-            </section>
-          ))}
+          {days.map(([key, items], i) => {
+            const [y, m, d] = key.split("-").map(Number);
+            const day = new Date(y, m - 1, d);
+            return (
+              <section key={key} aria-label={day.toDateString()}>
+                <h3 className={s.dayName}>
+                  {i === 0 ? "Today" : i === 1 ? "Tomorrow" : day.toLocaleDateString(undefined, { weekday: "long" })} ·{" "}
+                  {day.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </h3>
+                <DayList items={items} now={Date.parse(now)} isToday={i === 0} />
+              </section>
+            );
+          })}
         </div>
       </Card>
 

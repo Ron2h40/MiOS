@@ -59,8 +59,8 @@ describe("calendar in the store", () => {
   it("'every time' on a repeat makes today's task now and future ones on their day, never twice", () => {
     useMios.getState().sortCalendarItems([{ eventKey: "gym|1", choice: "task", scope: "series", mode: "daily-life" }]);
     expect(useMios.getState().tasks).toHaveLength(1);
-    expect(useMios.getState().runCalendarDaily()).toBe(0);
-    expect(useMios.getState().runCalendarDaily()).toBe(0);
+    expect(useMios.getState().runDaily()).toBe(0);
+    expect(useMios.getState().runDaily()).toBe(0);
     expect(useMios.getState().tasks).toHaveLength(1);
   });
 
@@ -136,5 +136,33 @@ describe("Google items in the store", () => {
     expect(st().calendarSources).toHaveLength(0);
     expect(st().tasks).toHaveLength(1);
     expect(st().google).toEqual({ enabled: false, syncTokens: {}, links: {}, calendarId: "cal-1" });
+  });
+});
+
+describe("repeating tasks in the store", () => {
+  beforeEach(() => useMios.getState().reset());
+
+  it("the first task is the first occurrence; the next day's comes once, on its day", () => {
+    const st = () => useMios.getState();
+    const t = st().addRepeatingTask({ title: "Journal", mode: "daily-life", priority: 3, scheduledStart: today(21) }, { kind: "daily" });
+    expect(t.repeat?.day).toBe(st().repeats[0].anchorDay);
+    expect(st().runDaily()).toBe(0); // today already has its task
+    expect(st().tasks).toHaveLength(1);
+  });
+
+  it("stopping keeps tasks already made", () => {
+    const st = () => useMios.getState();
+    const t = st().addRepeatingTask({ title: "Journal", mode: "daily-life", priority: 3 }, { kind: "daily" });
+    st().stopRepeating(t.repeat!.seriesId);
+    expect(st().repeats[0].stoppedAt).toBeTruthy();
+    expect(st().tasks).toHaveLength(1);
+  });
+
+  it("a repeating calendar item remembers what its time means", () => {
+    const st = () => useMios.getState();
+    st().importCalendar({ fileName: "x.ics", events: [gym, gymNext] });
+    st().sortCalendarItems([{ eventKey: "gym|1", choice: "task", scope: "series", mode: "daily-life", timing: "both" }]);
+    expect(st().tasks[0]).toMatchObject({ scheduledStart: today(18), deadline: today(19) });
+    expect(st().calendarDecisions["series:gym"].timing).toBe("both");
   });
 });

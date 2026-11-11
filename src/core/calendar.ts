@@ -54,6 +54,8 @@ export interface CalendarDecision {
   /** For "always add" series: the mode and priority each new occurrence gets. */
   mode?: TaskModeId;
   priority?: Priority;
+  /** For repeating items: what the item's time means for each task. */
+  timing?: RepeatTiming;
   at: ISODateTime;
 }
 
@@ -288,12 +290,25 @@ export const busyIntervals = (
     })
     .map((e) => ({ id: e.key, label: e.title, start: e.start, end: e.end }));
 
+/**
+ * What a repeating item's time means ("How do you want it repeated?"):
+ *  - "start": do it at that time (planned start)
+ *  - "due": it's due at that time (deadline, no planned start)
+ *  - "both": do it then, due by the end
+ */
+export type RepeatTiming = "start" | "due" | "both";
+
 /** The task an event becomes: same as one the user typed, minus the typing. */
 export const taskInputFromEvent = (
   e: CalendarEvent,
+  timing: RepeatTiming = "start",
 ): { title: string; scheduledStart?: ISODateTime; deadline?: ISODateTime } => {
-  if (!e.allDay) return { title: e.title, scheduledStart: e.start };
-  // All-day items (like "Essay due") become a deadline at the end of that day.
-  const day = new Date(toMs(e.start));
-  return { title: e.title, deadline: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59).toISOString() };
+  if (e.allDay) {
+    // All-day items (like "Essay due") become a deadline at the end of that day.
+    const day = new Date(toMs(e.start));
+    return { title: e.title, deadline: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59).toISOString() };
+  }
+  if (timing === "due") return { title: e.title, deadline: e.start };
+  if (timing === "both") return { title: e.title, scheduledStart: e.start, deadline: e.end };
+  return { title: e.title, scheduledStart: e.start };
 };

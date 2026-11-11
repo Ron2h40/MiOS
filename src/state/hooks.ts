@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
+  buildAgenda,
   busyIntervals,
   pendingToday,
   averageLevels,
@@ -176,5 +177,22 @@ export const usePendingToday = (now: string) => {
     // Recompute when the hour changes, not every tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [events, decisions, tasks, day],
+  );
+};
+
+/** Calendar views: what's on each day from `from` for `days` days. Display only. */
+export const useAgenda = (from: Date, days: number, now: string) => {
+  const tasks = useMios((s) => s.tasks);
+  const events = useMios((s) => s.calendarEvents);
+  const decisions = useMios((s) => s.calendarDecisions);
+  const repeats = useMios((s) => s.repeats);
+  const defaultEstimateMinutes = useMios((s) => s.settings.defaultEstimateMinutes);
+  const fromKey = from.toDateString();
+  const minute = now.slice(0, 16);
+  return useMemo(
+    () => buildAgenda({ tasks, events, decisions, repeats, defaultEstimateMinutes }, from, days, Date.parse(now)),
+    // `from` and `now` change identity every render; their day and minute are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, events, decisions, repeats, defaultEstimateMinutes, fromKey, days, minute],
   );
 };

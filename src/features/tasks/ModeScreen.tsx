@@ -9,6 +9,7 @@ import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import { QueueAssist } from "@/features/ai/QueueAssist";
 import { ResourceStrip } from "@/features/resources/ResourceStrip";
+import { MiniCalendar } from "@/features/calendar/MiniCalendar";
 import { DeadlockPanel, ModeLoadPanel, StarvationPanel } from "./Panels";
 import { TaskComposer } from "./TaskComposer";
 import { BlockerDialog, EditDialog, StartDialog } from "./TaskDialogs";
@@ -117,6 +118,8 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
               <Empty>Nothing running. Start the top task when you&apos;re ready.</Empty>
             )}
           </Card>
+
+          <MiniCalendar mode={modeId} />
         </div>
 
         <aside className={s.stack}>

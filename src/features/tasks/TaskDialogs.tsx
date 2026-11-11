@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { taskProtectedConflicts, wouldDeadlock, type Task } from "@/core";
+import { describePattern, taskProtectedConflicts, wouldDeadlock, type Task } from "@/core";
 import { useBusy } from "@/state/hooks";
 import { useMios, type NewBlocker } from "@/state/store";
 import { Button, Dialog } from "@/ui/primitives";
@@ -156,6 +156,9 @@ export function EditDialog({ task, onClose }: { task: Task | null; onClose: () =
   const updateTask = useMios((st) => st.updateTask);
   const settings = useMios((st) => st.settings);
   const busy = useBusy();
+  const repeats = useMios((st) => st.repeats);
+  const stopRepeating = useMios((st) => st.stopRepeating);
+  const series = task?.repeat ? repeats.find((r) => r.id === task.repeat!.seriesId) : undefined;
   const [draft, setDraft] = useState<TaskDraft | null>(null);
   const current: TaskDraft | null =
     draft ??
@@ -201,6 +204,26 @@ export function EditDialog({ task, onClose }: { task: Task | null; onClose: () =
       {current && (
         <div className={s.form}>
           <TaskFields draft={current} onChange={setDraft} showMode />
+          {series && (
+            <div className={s.repeatLine}>
+              <span>
+                ↻ {describePattern(series.pattern, series.anchorDay)}
+                {series.until ? ` until ${new Date(series.until + "T00:00").toLocaleDateString()}` : ""}
+                {series.stoppedAt ? " · stopped" : " · changes here are for this day only"}
+              </span>
+              {!series.stoppedAt && (
+                <Button
+                  size="sm"
+                  variant="plain"
+                  onClick={() => {
+                    if (confirm("Stop repeating? Tasks already made stay; no new ones are added.")) stopRepeating(series.id);
+                  }}
+                >
+                  Stop repeating
+                </Button>
+              )}
+            </div>
+          )}
           {conflicts.length > 0 && (
             <p className={`${s.callout} ${s.calloutWarn}`}>
               The planned start overlaps <strong>{conflicts[0].label}</strong>. Saving approves it.

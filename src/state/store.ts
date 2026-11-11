@@ -6,6 +6,11 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import {
   autoTasksToday,
   decisionKey,
+  dueOccurrences,
+  makeSeries,
+  type RepeatPattern,
+  type RepeatSeries,
+  type RepeatTiming,
   mergeEvents,
   pruneCalendar,
   taskInputFromEvent,
@@ -104,6 +109,8 @@ interface Data {
   calendarDecisions: Record<string, CalendarDecision>;
   /** E2 — Google Calendar sync bookkeeping. The access token is never stored. */
   google: GoogleState;
+  /** Repeating tasks made in MiOS. */
+  repeats: RepeatSeries[];
 }
 
 export interface GoogleState {
@@ -127,6 +134,8 @@ export interface CalendarAnswer {
   /** Repeating items: apply to every occurrence, or just this one. */
   scope: "once" | "series";
   mode: TaskModeId;
+  /** Repeating items: what the item's time means for each task. */
+  timing?: RepeatTiming;
   /** Optional: what the user filled in. Anything left out comes from the calendar item. */
   details?: CalendarTaskDetails;
 }
@@ -188,8 +197,12 @@ interface Actions {
   sortCalendarItems(answers: CalendarAnswer[]): { added: number };
   /** Ask about an item (or a whole repeating series) again. */
   forgetCalendarDecision(key: string): void;
-  /** Make today's tasks for repeating items the user always adds; prune old events. */
-  runCalendarDaily(): number;
+  /** Once a day: make today's tasks for repeats (calendar and MiOS), prune old calendar items. */
+  runDaily(): number;
+  /** Add a task that repeats. The task is the first occurrence. */
+  addRepeatingTask(input: NewTaskInput, pattern: RepeatPattern, until?: string): Task;
+  /** End a series. Tasks already made stay. */
+  stopRepeating(seriesId: string): void;
 
   /** E2 — calendar items read from Google. `full` replaces that calendar's items. */
   applyGoogleItems(input: { sourceId: string; name: string; items: CalendarEvent[]; removedIds: string[]; full: boolean }): void;
@@ -219,6 +232,7 @@ const initialData = (): Data => ({
   calendarEvents: [],
   calendarDecisions: {},
   google: GOOGLE_INITIAL,
+  repeats: [],
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -257,7 +271,13 @@ export const useMios = create<MiosStore>()(
        * defaults, same event log. The time comes from their own calendar, so
        * landing in protected time counts as approved (and is logged).
        */
-      const createFromEvent = (e: CalendarEvent, mode: TaskModeId, details?: CalendarTaskDetails, priority: Priority = 3): Task => {
+      const createFromEvent = (
+        e: CalendarEvent,
+        mode: TaskModeId,
+        details?: CalendarTaskDetails,
+        priority: Priority = 3,
+        timing?: RepeatTiming,
+      ): Task => {
         const input = details
           ? {
               title: details.title.trim() || e.title,
@@ -265,7 +285,7 @@ export const useMios = create<MiosStore>()(
               scheduledStart: details.scheduledStart,
               estimateMinutes: details.estimateMinutes,
             }
-          : taskInputFromEvent(e);
+          : taskInputFromEvent(e, timing);
         const inProtected = taskProtectedConflicts(input, get().settings).length > 0;
         return get().addTask({
           ...input,
@@ -535,6 +555,7 @@ export const useMios = create<MiosStore>()(
               calendarDecisions: parsed.calendarDecisions ?? {},
               // A different browser has no Google sign-in; keep only the MiOS calendar id so it's reused.
               google: { ...GOOGLE_INITIAL, ...(parsed.google?.calendarId ? { calendarId: parsed.google.calendarId } : {}) },
+              repeats: Array.isArray(parsed.repeats) ? parsed.repeats : [],
             });
             return ok(undefined);
           } catch {
@@ -619,9 +640,10 @@ export const useMios = create<MiosStore>()(
             if (a.choice === "task") {
               // Never make a second task for the same item, however often this runs.
               const already = get().tasks.find((t) => t.source?.eventKey === e.key);
-              const task = already ?? createFromEvent(e, a.mode, a.details);
+              const timing = scope === "series" ? a.timing : undefined;
+              const task = already ?? createFromEvent(e, a.mode, a.details, 3, timing);
               if (!already) added++;
-              decisions[key] = { choice: "task", taskId: task.id, mode: a.mode, priority: task.priority, at };
+              decisions[key] = { choice: "task", taskId: task.id, mode: a.mode, priority: task.priority, ...(timing ? { timing } : {}), at };
               if (scope === "series") decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
             } else {
               decisions[key] = { choice: "busy", ...(a.choice === "skip" ? { skipped: true } : {}), at };
@@ -639,7 +661,21 @@ export const useMios = create<MiosStore>()(
           });
         },
 
-        runCalendarDaily() {
+        addRepeatingTask(input, pattern, until) {
+          const task = get().addTask(input);
+          const series = makeSeries(task, pattern, { id: uid(), now: Date.now(), until });
+          set((s) => ({
+            repeats: [...s.repeats, series],
+            tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, repeat: { seriesId: series.id, day: series.anchorDay } } : t)),
+          }));
+          return get().tasks.find((t) => t.id === task.id)!;
+        },
+
+        stopRepeating(seriesId) {
+          set((s) => ({ repeats: s.repeats.map((r) => (r.id === seriesId && !r.stoppedAt ? { ...r, stoppedAt: now() } : r)) }));
+        },
+
+        runDaily() {
           const nowMs = Date.now();
           const pruned = pruneCalendar(get().calendarEvents, get().calendarDecisions, nowMs);
           set({ calendarEvents: pruned.events, calendarDecisions: pruned.decisions });
@@ -649,11 +685,25 @@ export const useMios = create<MiosStore>()(
           for (const e of due) {
             if (get().tasks.some((t) => t.source?.eventKey === e.key)) continue;
             const series = get().calendarDecisions[decisionKey.series(e)];
-            const task = createFromEvent(e, series?.mode ?? "daily-life", undefined, series?.priority);
+            const task = createFromEvent(e, series?.mode ?? "daily-life", undefined, series?.priority, series?.timing);
             decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
           }
           if (due.length) set((s) => ({ calendarDecisions: { ...s.calendarDecisions, ...decisions } }));
-          return due.length;
+
+          // Repeating tasks made in MiOS: today's occurrence, once.
+          const occurrences = dueOccurrences(get().repeats, get().tasks, nowMs);
+          for (const o of occurrences) {
+            const task = get().addTask({
+              title: o.title,
+              mode: o.mode,
+              priority: o.priority,
+              estimateMinutes: o.estimateMinutes,
+              scheduledStart: o.scheduledStart,
+              deadline: o.deadline,
+            });
+            set((s) => ({ tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, repeat: { seriesId: o.seriesId, day: o.day } } : t)) }));
+          }
+          return due.length + occurrences.length;
         },
 
         applyGoogleItems({ sourceId, name, items, removedIds, full }) {
@@ -728,6 +778,7 @@ export const useMios = create<MiosStore>()(
         calendarEvents,
         calendarDecisions,
         google,
+        repeats,
       }) => ({
         tasks,
         events,
@@ -741,6 +792,7 @@ export const useMios = create<MiosStore>()(
         calendarEvents,
         calendarDecisions,
         google,
+        repeats,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
@@ -752,7 +804,7 @@ export const useMios = create<MiosStore>()(
 export const exportSnapshot = (): string => {
   const s = useMios.getState();
   const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = s;
-  const { calendarSources, calendarEvents, calendarDecisions, google } = s;
+  const { calendarSources, calendarEvents, calendarDecisions, google, repeats } = s;
   return JSON.stringify(
     {
       version: SCHEMA_VERSION,
@@ -769,6 +821,7 @@ export const exportSnapshot = (): string => {
       calendarEvents,
       calendarDecisions,
       google: { calendarId: google.calendarId },
+      repeats,
     },
     null,
     2,
