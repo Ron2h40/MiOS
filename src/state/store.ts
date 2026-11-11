@@ -8,6 +8,8 @@ import {
   decisionKey,
   dueOccurrences,
   makeSeries,
+  pruneArchive,
+  type ArchivedTask,
   ONE_OFF_FIELDS,
   seriesKeyOf,
   staleOccurrences,
@@ -114,6 +116,8 @@ interface Data {
   google: GoogleState;
   /** Repeating tasks made in MiOS. */
   repeats: RepeatSeries[];
+  /** Deleted and replaced tasks, kept 30 days so they can be restored (History). */
+  archive: ArchivedTask[];
 }
 
 export interface GoogleState {
@@ -206,6 +210,10 @@ interface Actions {
   addRepeatingTask(input: NewTaskInput, pattern: RepeatPattern, until?: string): Task;
   /** End a series. Tasks already made stay. */
   stopRepeating(seriesId: string): void;
+  /** History: bring a deleted or replaced task back. */
+  restoreTask(id: string): void;
+  /** History: remove an archived task for good. */
+  purgeArchived(id: string): void;
 
   /** E2: calendar items read from Google. `full` replaces that calendar's items. */
   applyGoogleItems(input: { sourceId: string; name: string; items: CalendarEvent[]; removedIds: string[]; full: boolean }): void;
@@ -236,6 +244,7 @@ const initialData = (): Data => ({
   calendarDecisions: {},
   google: GOOGLE_INITIAL,
   repeats: [],
+  archive: [],
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -310,10 +319,15 @@ export const useMios = create<MiosStore>()(
         const removed = new Map<string, string>();
         for (const t of arrived) for (const old of staleOccurrences(get().tasks, t, Date.now())) removed.set(old.id, t.id);
         if (!removed.size) return;
+        const at = now();
         set((s) => {
           const links = { ...s.google.links };
           for (const [id, link] of Object.entries(links)) if (removed.has(link.taskId)) delete links[id];
           return {
+            archive: [
+              ...s.archive,
+              ...s.tasks.filter((t) => removed.has(t.id)).map((task) => ({ task, reason: "replaced" as const, at })),
+            ],
             tasks: wakeUnblocked(
               s.tasks
                 .filter((t) => !removed.has(t.id))
@@ -381,7 +395,9 @@ export const useMios = create<MiosStore>()(
 
         deleteTask(id) {
           const at = now();
+          const gone = get().tasks.find((t) => t.id === id);
           set((s) => ({
+            archive: gone ? [...s.archive, { task: gone, reason: "deleted" as const, at }] : s.archive,
             tasks: wakeUnblocked(
               s.tasks
                 .filter((t) => t.id !== id)
@@ -593,6 +609,7 @@ export const useMios = create<MiosStore>()(
               // A different browser has no Google sign-in; keep only the MiOS calendar id so it's reused.
               google: { ...GOOGLE_INITIAL, ...(parsed.google?.calendarId ? { calendarId: parsed.google.calendarId } : {}) },
               repeats: Array.isArray(parsed.repeats) ? parsed.repeats : [],
+              archive: Array.isArray(parsed.archive) ? parsed.archive : [],
             });
             return ok(undefined);
           } catch {
@@ -717,8 +734,37 @@ export const useMios = create<MiosStore>()(
           set((s) => ({ repeats: s.repeats.map((r) => (r.id === seriesId && !r.stoppedAt ? { ...r, stoppedAt: now() } : r)) }));
         },
 
+        restoreTask(id) {
+          const entry = get().archive.find((a) => a.task.id === id);
+          if (!entry || get().tasks.some((t) => t.id === id)) return;
+          const at = now();
+          set((s) => {
+            const byId = new Map(s.tasks.map((t) => [t.id, t]));
+            // Task blockers pointing at tasks that are gone are dropped.
+            const blockedBy = entry.task.blockedBy.filter((b) => b.kind !== "task" || byId.has(b.taskId));
+            const base: Task = { ...entry.task, blockedBy, runningSince: undefined, updatedAt: at };
+            // A finished task comes back finished; anything else comes back to Ready (or Blocked).
+            // The state change marks it as touched, so a restored repeat day isn't replaced again.
+            const restored: Task =
+              base.state === "done"
+                ? base
+                : {
+                    ...base,
+                    state: hasActiveBlockers(base, byId) ? "blocked" : "ready",
+                    completedAt: undefined,
+                    stateChangedAt: at,
+                  };
+            return { tasks: [...s.tasks, restored], archive: s.archive.filter((a) => a.task.id !== id) };
+          });
+        },
+
+        purgeArchived(id) {
+          set((s) => ({ archive: s.archive.filter((a) => a.task.id !== id) }));
+        },
+
         runDaily() {
           const nowMs = Date.now();
+          set((s) => ({ archive: pruneArchive(s.archive, nowMs) }));
           const pruned = pruneCalendar(get().calendarEvents, get().calendarDecisions, nowMs);
           set({ calendarEvents: pruned.events, calendarDecisions: pruned.decisions });
           const due = autoTasksToday(get().calendarEvents, get().calendarDecisions, get().tasks, nowMs);
@@ -826,6 +872,7 @@ export const useMios = create<MiosStore>()(
         calendarDecisions,
         google,
         repeats,
+        archive,
       }) => ({
         tasks,
         events,
@@ -840,6 +887,7 @@ export const useMios = create<MiosStore>()(
         calendarDecisions,
         google,
         repeats,
+        archive,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
@@ -851,7 +899,7 @@ export const useMios = create<MiosStore>()(
 export const exportSnapshot = (): string => {
   const s = useMios.getState();
   const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = s;
-  const { calendarSources, calendarEvents, calendarDecisions, google, repeats } = s;
+  const { calendarSources, calendarEvents, calendarDecisions, google, repeats, archive } = s;
   return JSON.stringify(
     {
       version: SCHEMA_VERSION,
@@ -869,6 +917,7 @@ export const exportSnapshot = (): string => {
       calendarDecisions,
       google: { calendarId: google.calendarId },
       repeats,
+      archive,
     },
     null,
     2,

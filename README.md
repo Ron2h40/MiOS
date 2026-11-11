@@ -62,6 +62,7 @@ src/
 │   ├── calendar.ts    E shared calendar: duplicate-proof merging, check-in status, busy time
 │   ├── repeats.ts     Repeating tasks: patterns, exact times, one task per day
 │   ├── agenda.ts      What's on each day, for every calendar view
+│   ├── history.ts     Past tasks, filters, and the 30-day archive for deleted and replaced tasks
 │   └── __tests__/
 ├── ai/              AI assistant logic shared by browser and server. No React.
 │   ├── types.ts       Request/response types per feature, pop-up question shape
@@ -82,7 +83,7 @@ src/
 ├── features/        Screens, one folder per feature (tasks, ai, calendar, focus, progress, resources, rewards, settings, shell)
 ├── ui/              Presentational primitives (Button, Card, Dialog, pills, toast)
 └── app/             Next.js routes only, thin wrappers around feature screens
-    ├── (os)/          Routes inside the app shell: /m/[mode], /calendar, /resources, /progress, /settings, /privacy
+    ├── (os)/          Routes inside the app shell: /m/[mode], /calendar, /resources, /progress, /history, /settings, /privacy
     ├── api/ai/        POST /api/ai: the single server entry point for AI
     └── focus/         A7 focus view, outside the shell so everything else is hidden
 ```
