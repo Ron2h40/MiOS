@@ -166,17 +166,35 @@ const taskDay = (t: Task): string =>
   t.repeat?.day ?? keyOf(new Date(Date.parse(t.scheduledStart ?? t.deadline ?? t.createdAt)));
 
 /**
- * Earlier days a newly arrived occurrence replaces: same series, earlier day,
- * still waiting in Ready, and never changed by hand. Running, blocked and
- * edited days stay: the user is on them, they're waiting on something, or the
- * user made that day its own.
+ * Why an unfinished day of a series stays when the next one arrives, or
+ * undefined if it can be replaced. A day is only replaced when nobody has
+ * touched it: still in Ready, its state never changed since it was made (so
+ * never started, paused, blocked, unblocked or reopened), not edited by hand,
+ * and past its deadline if it has one (an overnight day isn't cut short).
  */
-export const staleOccurrences = (tasks: readonly Task[], arrived: Task): Task[] => {
+export type KeepReason = "edited" | "running" | "blocked" | "worked-on" | "not-due-yet";
+
+export const keepReason = (t: Task, now: number): KeepReason | undefined => {
+  if (t.oneOff) return "edited";
+  if (t.state === "running") return "running";
+  if (t.state === "blocked") return "blocked";
+  if (t.stateChangedAt !== t.createdAt) return "worked-on";
+  if (t.deadline && Date.parse(t.deadline) > now) return "not-due-yet";
+  return undefined;
+};
+
+/** Earlier days of the same series that a newly arrived occurrence replaces. */
+export const staleOccurrences = (tasks: readonly Task[], arrived: Task, now: number): Task[] => {
   const key = seriesKeyOf(arrived);
   if (!key) return [];
   const day = taskDay(arrived);
   return tasks.filter(
-    (t) => t.id !== arrived.id && t.state === "ready" && !t.oneOff && seriesKeyOf(t) === key && taskDay(t) < day,
+    (t) =>
+      t.id !== arrived.id &&
+      t.state === "ready" &&
+      seriesKeyOf(t) === key &&
+      taskDay(t) < day &&
+      keepReason(t, now) === undefined,
   );
 };
 

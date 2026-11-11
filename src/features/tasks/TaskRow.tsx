@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getMode, seriesKeyOf, type Task } from "@/core";
+import { getMode, keepReason, seriesKeyOf, type KeepReason, type Task } from "@/core";
 import { useMios } from "@/state/store";
 import { formatMinutes, formatWhen } from "@/ui/format";
 import { Button, Pill, StatePill } from "@/ui/primitives";
@@ -75,17 +75,7 @@ export function TaskRow({
           )}
           {task.scheduledStart && <span>Starts {formatWhen(task.scheduledStart)}</span>}
           {task.isInterrupt && <Pill tone="tag">Interrupt</Pill>}
-          {seriesKeyOf(task) && task.state !== "done" && (
-            <span
-              title={
-                task.oneOff
-                  ? "You changed this day of a repeating task, so MiOS keeps it until you finish or delete it."
-                  : "Repeats. If it's still waiting when the next one arrives, the next one replaces it."
-              }
-            >
-              <Pill tone={task.oneOff ? "warn" : "neutral"}>{task.oneOff ? "Edited repeat" : "↻ Repeats"}</Pill>
-            </span>
-          )}
+          {seriesKeyOf(task) && task.state !== "done" && <RepeatTag task={task} now={now} />}
           {task.protectedOverride && <Pill tone="tag">In protected time</Pill>}
           {starvedDays !== undefined && <Pill tone="warn">Waiting {starvedDays} days</Pill>}
         </div>
@@ -170,5 +160,27 @@ export function TaskRow({
         </Button>
       </div>
     </li>
+  );
+}
+
+const KEEP_NOTE: Record<KeepReason, string> = {
+  edited: "You changed this day of a repeating task, so MiOS keeps it until you finish or delete it.",
+  running: "You're working on this day, so the next one won't replace it.",
+  blocked: "This day is waiting on something, so the next one won't replace it.",
+  "worked-on": "You started, paused, blocked or reopened this day, so MiOS keeps it until you finish or delete it.",
+  "not-due-yet": "Repeats. Its deadline hasn't passed, so the next one won't replace it before then.",
+};
+
+/** Repeating days say whether the next day will replace them, and why not if it won't. */
+function RepeatTag({ task, now }: { task: Task; now: string }) {
+  const reason = keepReason(task, Date.parse(now));
+  const label = reason === "edited" ? "Edited repeat" : reason === "worked-on" ? "Kept repeat" : "↻ Repeats";
+  const note = reason
+    ? KEEP_NOTE[reason]
+    : "Repeats. If it's still waiting when the next one arrives, the next one replaces it.";
+  return (
+    <span title={note}>
+      <Pill tone={reason === "edited" ? "warn" : "neutral"}>{label}</Pill>
+    </span>
   );
 }

@@ -300,14 +300,15 @@ export const useMios = create<MiosStore>()(
       };
 
       /**
-       * A new day of a repeating task replaces earlier days still waiting in
-       * Ready. Days the user started, blocked or changed by hand stay. A
+       * A new day of a repeating task replaces earlier days nobody touched
+       * (see keepReason): started, paused, blocked, reopened, edited and
+       * not-yet-due days stay. A
        * replaced day is removed (never marked done, so stats stay honest) and
        * logged. Its Google event is kept as history.
        */
       const replaceStale = (arrived: readonly Task[]) => {
         const removed = new Map<string, string>();
-        for (const t of arrived) for (const old of staleOccurrences(get().tasks, t)) removed.set(old.id, t.id);
+        for (const t of arrived) for (const old of staleOccurrences(get().tasks, t, Date.now())) removed.set(old.id, t.id);
         if (!removed.size) return;
         set((s) => {
           const links = { ...s.google.links };
