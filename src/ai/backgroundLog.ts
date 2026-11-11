@@ -78,5 +78,7 @@ export const describeEvent = (e: MiosEvent, tasksById: ReadonlyMap<string, Task>
       return `${when} scheduled into protected time`;
     case "stage_changed":
       return `${when} moved from ${e.from} to ${e.to} stage`;
+    case "repeat_replaced":
+      return `${when} left ${title(e.taskId)} unfinished until the next one replaced it`;
   }
 };

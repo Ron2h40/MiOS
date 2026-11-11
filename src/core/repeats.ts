@@ -152,3 +152,33 @@ export const describePattern = (p: RepeatPattern, anchorDay?: string): string =>
       return anchorDay ? `Monthly on day ${parseDay(anchorDay).getDate()}` : "Monthly";
   }
 };
+
+// ---------------------------------------------------------------------------
+// Replacing unfinished days
+// ---------------------------------------------------------------------------
+
+/** Tasks of the same series share this key: a MiOS repeat, or a repeating calendar item. */
+export const seriesKeyOf = (t: Pick<Task, "repeat" | "source">): string | undefined =>
+  t.repeat ? `mios:${t.repeat.seriesId}` : t.source?.recurring ? `calendar:${t.source.uid}` : undefined;
+
+/** The local day a task belongs to. */
+const taskDay = (t: Task): string =>
+  t.repeat?.day ?? keyOf(new Date(Date.parse(t.scheduledStart ?? t.deadline ?? t.createdAt)));
+
+/**
+ * Earlier days a newly arrived occurrence replaces: same series, earlier day,
+ * still waiting in Ready, and never changed by hand. Running, blocked and
+ * edited days stay: the user is on them, they're waiting on something, or the
+ * user made that day its own.
+ */
+export const staleOccurrences = (tasks: readonly Task[], arrived: Task): Task[] => {
+  const key = seriesKeyOf(arrived);
+  if (!key) return [];
+  const day = taskDay(arrived);
+  return tasks.filter(
+    (t) => t.id !== arrived.id && t.state === "ready" && !t.oneOff && seriesKeyOf(t) === key && taskDay(t) < day,
+  );
+};
+
+/** Fields whose change makes one day of a series its own. A time guess doesn't count. */
+export const ONE_OFF_FIELDS = ["title", "mode", "priority", "deadline", "scheduledStart"] as const;

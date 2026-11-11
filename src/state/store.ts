@@ -8,6 +8,9 @@ import {
   decisionKey,
   dueOccurrences,
   makeSeries,
+  ONE_OFF_FIELDS,
+  seriesKeyOf,
+  staleOccurrences,
   type RepeatPattern,
   type RepeatSeries,
   type RepeatTiming,
@@ -292,8 +295,34 @@ export const useMios = create<MiosStore>()(
           mode,
           priority: details?.priority ?? priority,
           protectedOverride: inProtected || undefined,
-          source: { kind: "calendar", eventKey: e.key, uid: e.uid },
+          source: { kind: "calendar", eventKey: e.key, uid: e.uid, ...(e.recurring ? { recurring: true } : {}) },
         });
+      };
+
+      /**
+       * A new day of a repeating task replaces earlier days still waiting in
+       * Ready. Days the user started, blocked or changed by hand stay. A
+       * replaced day is removed (never marked done, so stats stay honest) and
+       * logged. Its Google event is kept as history.
+       */
+      const replaceStale = (arrived: readonly Task[]) => {
+        const removed = new Map<string, string>();
+        for (const t of arrived) for (const old of staleOccurrences(get().tasks, t)) removed.set(old.id, t.id);
+        if (!removed.size) return;
+        set((s) => {
+          const links = { ...s.google.links };
+          for (const [id, link] of Object.entries(links)) if (removed.has(link.taskId)) delete links[id];
+          return {
+            tasks: wakeUnblocked(
+              s.tasks
+                .filter((t) => !removed.has(t.id))
+                .map((t) => ({ ...t, blockedBy: t.blockedBy.filter((b) => !(b.kind === "task" && removed.has(b.taskId))) })),
+              now(),
+            ),
+            google: { ...s.google, links },
+          };
+        });
+        pushEvents(...[...removed].map(([taskId, byTaskId]) => ({ type: "repeat_replaced" as const, taskId, byTaskId })));
       };
 
       return {
@@ -332,7 +361,12 @@ export const useMios = create<MiosStore>()(
 
         updateTask(id, patch) {
           const before = get().tasks.find((t) => t.id === id);
-          replaceTask(id, (t) => ({ ...t, ...patch, updatedAt: now() }));
+          // Changing what or when on one day of a repeating task makes that day its own.
+          const oneOff =
+            !!before &&
+            !!seriesKeyOf(before) &&
+            ONE_OFF_FIELDS.some((k) => k in patch && (patch[k] ?? undefined) !== (before[k] ?? undefined));
+          replaceTask(id, (t) => ({ ...t, ...patch, ...(oneOff ? { oneOff: true } : {}), updatedAt: now() }));
           if (before && patch.protectedOverride && !before.protectedOverride) {
             pushEvents({ type: "referee_override", taskId: id, blockLabel: "protected time" });
           }
@@ -634,6 +668,7 @@ export const useMios = create<MiosStore>()(
           const at = now();
           let added = 0;
           const decisions: Record<string, CalendarDecision> = {};
+          const made: Task[] = [];
           for (const a of answers) {
             const e = get().calendarEvents.find((x) => x.key === a.eventKey);
             if (!e) continue;
@@ -644,7 +679,10 @@ export const useMios = create<MiosStore>()(
               const already = get().tasks.find((t) => t.source?.eventKey === e.key);
               const timing = scope === "series" ? a.timing : undefined;
               const task = already ?? createFromEvent(e, a.mode, a.details, 3, timing);
-              if (!already) added++;
+              if (!already) {
+                added++;
+                made.push(task);
+              }
               decisions[key] = { choice: "task", taskId: task.id, mode: a.mode, priority: task.priority, ...(timing ? { timing } : {}), at };
               if (scope === "series") decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
             } else {
@@ -652,6 +690,7 @@ export const useMios = create<MiosStore>()(
             }
           }
           set((s) => ({ calendarDecisions: { ...s.calendarDecisions, ...decisions } }));
+          replaceStale(made);
           return { added };
         },
 
@@ -684,11 +723,13 @@ export const useMios = create<MiosStore>()(
           const due = autoTasksToday(get().calendarEvents, get().calendarDecisions, get().tasks, nowMs);
           const at = now();
           const decisions: Record<string, CalendarDecision> = {};
+          const made: Task[] = [];
           for (const e of due) {
             if (get().tasks.some((t) => t.source?.eventKey === e.key)) continue;
             const series = get().calendarDecisions[decisionKey.series(e)];
             const task = createFromEvent(e, series?.mode ?? "daily-life", undefined, series?.priority, series?.timing);
             decisions[decisionKey.once(e)] = { choice: "task", taskId: task.id, at };
+            made.push(task);
           }
           if (due.length) set((s) => ({ calendarDecisions: { ...s.calendarDecisions, ...decisions } }));
 
@@ -703,7 +744,9 @@ export const useMios = create<MiosStore>()(
               deadline: o.deadline,
             });
             set((s) => ({ tasks: s.tasks.map((t) => (t.id === task.id ? { ...t, repeat: { seriesId: o.seriesId, day: o.day } } : t)) }));
+            made.push(get().tasks.find((t) => t.id === task.id)!);
           }
+          replaceStale(made);
           return due.length + occurrences.length;
         },
 
@@ -730,9 +773,11 @@ export const useMios = create<MiosStore>()(
           const clear = new Set(cleared);
           set((s) => ({
             tasks: s.tasks.map((t) => {
-              if (clear.has(t.id)) return { ...t, scheduledStart: undefined, protectedOverride: undefined, updatedAt: at };
+              // Moving or deleting one day of a repeat in Google makes that day its own, as an edit in MiOS would.
+              const oneOff = seriesKeyOf(t) ? { oneOff: true } : {};
+              if (clear.has(t.id)) return { ...t, scheduledStart: undefined, protectedOverride: undefined, ...oneOff, updatedAt: at };
               // Moved by the user in their own calendar: their own plan now.
-              if (startById.has(t.id)) return { ...t, scheduledStart: startById.get(t.id), aiPlanned: false, updatedAt: at };
+              if (startById.has(t.id)) return { ...t, scheduledStart: startById.get(t.id), aiPlanned: false, ...oneOff, updatedAt: at };
               return t;
             }),
           }));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getMode, type Task } from "@/core";
+import { getMode, seriesKeyOf, type Task } from "@/core";
 import { useMios } from "@/state/store";
 import { formatMinutes, formatWhen } from "@/ui/format";
 import { Button, Pill, StatePill } from "@/ui/primitives";
@@ -75,6 +75,17 @@ export function TaskRow({
           )}
           {task.scheduledStart && <span>Starts {formatWhen(task.scheduledStart)}</span>}
           {task.isInterrupt && <Pill tone="tag">Interrupt</Pill>}
+          {seriesKeyOf(task) && task.state !== "done" && (
+            <span
+              title={
+                task.oneOff
+                  ? "You changed this day of a repeating task, so MiOS keeps it until you finish or delete it."
+                  : "Repeats. If it's still waiting when the next one arrives, the next one replaces it."
+              }
+            >
+              <Pill tone={task.oneOff ? "warn" : "neutral"}>{task.oneOff ? "Edited repeat" : "↻ Repeats"}</Pill>
+            </span>
+          )}
           {task.protectedOverride && <Pill tone="tag">In protected time</Pill>}
           {starvedDays !== undefined && <Pill tone="warn">Waiting {starvedDays} days</Pill>}
         </div>

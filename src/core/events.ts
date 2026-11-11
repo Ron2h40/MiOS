@@ -31,7 +31,9 @@ export type MiosEvent =
   | { type: "stage_changed"; at: ISODateTime; stage: Stage; from: Stage; to: Stage; reason: "auto" | "manual" }
   | { type: "time_guess"; at: ISODateTime; stage: Stage; taskId: string; minutes: number }
   | { type: "blocker_added"; at: ISODateTime; stage: Stage; taskId: string; kind: "task" | "person" | "event" }
-  | { type: "ai_used"; at: ISODateTime; stage: Stage; feature: string };
+  | { type: "ai_used"; at: ISODateTime; stage: Stage; feature: string }
+  /** An unfinished, untouched day of a repeating task was replaced by the next one. */
+  | { type: "repeat_replaced"; at: ISODateTime; stage: Stage; taskId: string; byTaskId: string };
 
 export type MiosEventType = MiosEvent["type"];
 

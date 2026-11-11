@@ -57,9 +57,11 @@ export interface Task {
   stateChangedAt: ISODateTime;
   completedAt?: ISODateTime;
   /** E1/E2 — the calendar item this task was made from, so it's never added twice. */
-  source?: { kind: "calendar"; eventKey: string; uid: string };
+  source?: { kind: "calendar"; eventKey: string; uid: string; recurring?: boolean };
   /** A repeating task made in MiOS: which series and which local day ("YYYY-MM-DD"). */
   repeat?: { seriesId: string; day: string };
+  /** One day of a repeating series that the user changed by hand; it is never replaced by the next one. */
+  oneOff?: boolean;
 }
 
 /** A6 — recurring protected time, e.g. sleep or gym. Times are local "HH:MM". */

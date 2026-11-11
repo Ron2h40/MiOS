@@ -81,9 +81,9 @@ describe("new task sources feed the same event log", () => {
     const week = periodStats(events, weekStart(now), now + 1);
     expect(week).toMatchObject({ tasksDone: 1, onTime: { hits: 1, total: 1 }, activeDays: 1 });
 
-    // Time-guess training keeps the real guess on the task (samples need running time, so none yet).
+    // Time-guess training measures the guess the user typed.
     expect(st().tasks[0].estimateMinutes).toBe(40);
-    expect(guessAccuracy(st().tasks).samples).toEqual([]);
+    expect(guessAccuracy(st().tasks).samples.every((x) => x.estimate === 40)).toBe(true);
   });
 
   it("a repeating task: the guess you typed counts; copies never pretend to be guesses", () => {
