@@ -31,6 +31,8 @@ export interface CalendarEvent {
   sourceId: string;
   /** Set when this event was exported by MiOS for one of its own tasks. */
   miosTaskId?: string;
+  /** The event's id in an outside service (Google), to apply deletions. */
+  externalId?: string;
 }
 
 export interface CalendarSource {

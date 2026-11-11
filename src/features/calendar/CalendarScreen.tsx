@@ -9,6 +9,7 @@ import { formatTime } from "@/ui/format";
 import { Button, Card, Empty, Pill } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import { CheckInDialog, eventTime } from "./CheckIn";
+import { GoogleCard } from "./GoogleSync";
 import s from "./calendar.module.css";
 
 const DAYS_SHOWN = 7;
@@ -172,6 +173,8 @@ export function CalendarScreen() {
         </div>
       </Card>
 
+      <GoogleCard />
+
       <Card
         title="Calendars"
         hint="Import .ics files from Google, Outlook or Apple. Importing the same file again updates it; nothing is ever added twice."
@@ -199,18 +202,23 @@ export function CalendarScreen() {
                   <strong>{c.name}</strong>
                   <span className={s.sourceMeta}>
                     {" "}
-                    · {countBySource.get(c.id) ?? 0} items · imported {new Date(c.importedAt).toLocaleDateString()}
+                    · {countBySource.get(c.id) ?? 0} items · {c.kind === "ics" ? "imported" : "synced"}{" "}
+                    {new Date(c.importedAt).toLocaleDateString()}
                   </span>
                 </span>
-                <Button
-                  size="sm"
-                  variant="plain"
-                  onClick={() => {
-                    if (confirm(`Remove ${c.name}? Its items leave MiOS. Tasks you already made from it stay.`)) removeCalendar(c.id);
-                  }}
-                >
-                  Remove
-                </Button>
+                {c.kind === "ics" ? (
+                  <Button
+                    size="sm"
+                    variant="plain"
+                    onClick={() => {
+                      if (confirm(`Remove ${c.name}? Its items leave MiOS. Tasks you already made from it stay.`)) removeCalendar(c.id);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <span className={s.sourceMeta}>Synced</span>
+                )}
               </li>
             ))}
           </ul>

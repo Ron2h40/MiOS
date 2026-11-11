@@ -72,3 +72,42 @@ describe("calendar in the store", () => {
     expect(useMios.getState().tasks).toHaveLength(1);
   });
 });
+
+describe("Google items in the store", () => {
+  beforeEach(() => useMios.getState().reset());
+
+  const g = (key: string, externalId: string) => ev({ key, externalId, title: key, start: today(8), end: today(9) });
+
+  it("applies Google's deletions by event id, and a full read replaces that calendar's items", () => {
+    const st = () => useMios.getState();
+    st().applyGoogleItems({ sourceId: "google:primary", name: "Google Calendar", items: [g("a", "ga"), g("b", "gb")], removedIds: [], full: true });
+    expect(st().calendarEvents.map((e) => e.key)).toEqual(["a", "b"]);
+    st().applyGoogleItems({ sourceId: "google:primary", name: "Google Calendar", items: [], removedIds: ["ga"], full: false });
+    expect(st().calendarEvents.map((e) => e.key)).toEqual(["b"]);
+    st().applyGoogleItems({ sourceId: "google:primary", name: "Google Calendar", items: [g("c", "gc")], removedIds: [], full: true });
+    expect(st().calendarEvents.map((e) => e.key)).toEqual(["c"]);
+    expect(st().calendarSources).toHaveLength(1);
+  });
+
+  it("moves from Google move the plan; deletes clear it; tasks are never deleted", () => {
+    const st = () => useMios.getState();
+    const t = st().addTask({ title: "Study", mode: "daily-life", priority: 3, scheduledStart: today(14) });
+    st().applyGoogleTaskChanges([{ taskId: t.id, start: today(16) }], []);
+    expect(st().tasks[0].scheduledStart).toBe(today(16));
+    st().applyGoogleTaskChanges([], [t.id]);
+    expect(st().tasks).toHaveLength(1);
+    expect(st().tasks[0].scheduledStart).toBeUndefined();
+  });
+
+  it("disconnecting removes Google's items, keeps tasks and remembers the MiOS calendar", () => {
+    const st = () => useMios.getState();
+    st().updateGoogle({ enabled: true, calendarId: "cal-1", links: { x: { taskId: "t", kind: "block", hash: "h" } } });
+    st().applyGoogleItems({ sourceId: "google:primary", name: "Google Calendar", items: [g("a", "ga")], removedIds: [], full: true });
+    st().addTask({ title: "Keep me", mode: "chores", priority: 3 });
+    st().disconnectGoogle();
+    expect(st().calendarEvents).toHaveLength(0);
+    expect(st().calendarSources).toHaveLength(0);
+    expect(st().tasks).toHaveLength(1);
+    expect(st().google).toEqual({ enabled: false, syncTokens: {}, links: {}, calendarId: "cal-1" });
+  });
+});

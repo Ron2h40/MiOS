@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import type { GoogleLink } from "@/integrations/google/mapping";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   autoTasksToday,
@@ -101,7 +102,23 @@ interface Data {
   calendarSources: CalendarSource[];
   calendarEvents: CalendarEvent[];
   calendarDecisions: Record<string, CalendarDecision>;
+  /** E2 — Google Calendar sync bookkeeping. The access token is never stored. */
+  google: GoogleState;
 }
+
+export interface GoogleState {
+  /** The user connected once; sync resumes when they press Sync. */
+  enabled: boolean;
+  /** The separate calendar MiOS created and writes to. */
+  calendarId?: string;
+  /** "What changed since last time" markers, per calendar. */
+  syncTokens: Record<string, string>;
+  /** What MiOS last wrote for each Google event id. */
+  links: Record<string, GoogleLink>;
+  lastSyncAt?: ISODateTime;
+}
+
+export const GOOGLE_INITIAL: GoogleState = { enabled: false, syncTokens: {}, links: {} };
 
 /** One row of the morning check-in. */
 export interface CalendarAnswer {
@@ -163,6 +180,14 @@ interface Actions {
   forgetCalendarDecision(key: string): void;
   /** Make today's tasks for repeating items the user always adds; prune old events. */
   runCalendarDaily(): number;
+
+  /** E2 — calendar items read from Google. `full` replaces that calendar's items. */
+  applyGoogleItems(input: { sourceId: string; name: string; items: CalendarEvent[]; removedIds: string[]; full: boolean }): void;
+  /** E2 — the user moved or deleted MiOS blocks in Google. Tasks are never deleted. */
+  applyGoogleTaskChanges(moves: { taskId: string; start: ISODateTime }[], cleared: string[]): void;
+  updateGoogle(patch: Partial<GoogleState> | ((g: GoogleState) => Partial<GoogleState>)): void;
+  /** Stop syncing: Google's items leave MiOS; tasks stay. */
+  disconnectGoogle(): void;
   reset(): void;
 }
 
@@ -183,6 +208,7 @@ const initialData = (): Data => ({
   calendarSources: [],
   calendarEvents: [],
   calendarDecisions: {},
+  google: GOOGLE_INITIAL,
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -490,6 +516,8 @@ export const useMios = create<MiosStore>()(
               calendarSources: Array.isArray(parsed.calendarSources) ? parsed.calendarSources : [],
               calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
               calendarDecisions: parsed.calendarDecisions ?? {},
+              // A different browser has no Google sign-in; keep only the MiOS calendar id so it's reused.
+              google: { ...GOOGLE_INITIAL, ...(parsed.google?.calendarId ? { calendarId: parsed.google.calendarId } : {}) },
             });
             return ok(undefined);
           } catch {
@@ -611,6 +639,55 @@ export const useMios = create<MiosStore>()(
           return due.length;
         },
 
+        applyGoogleItems({ sourceId, name, items, removedIds, full }) {
+          set((s) => {
+            const removed = new Set(removedIds);
+            const kept = s.calendarEvents.filter((e) =>
+              full ? e.sourceId !== sourceId : !(e.externalId && removed.has(e.externalId)),
+            );
+            const { events } = mergeEvents(kept, items.map((e) => ({ ...e, sourceId })), s.tasks, Date.now());
+            const has = s.calendarSources.some((c) => c.id === sourceId);
+            const source: CalendarSource = { id: sourceId, kind: "google", name, importedAt: now() };
+            return {
+              calendarEvents: events,
+              calendarSources: has ? s.calendarSources.map((c) => (c.id === sourceId ? source : c)) : [...s.calendarSources, source],
+            };
+          });
+        },
+
+        applyGoogleTaskChanges(moves, cleared) {
+          if (!moves.length && !cleared.length) return;
+          const at = now();
+          const startById = new Map(moves.map((m) => [m.taskId, m.start]));
+          const clear = new Set(cleared);
+          set((s) => ({
+            tasks: s.tasks.map((t) => {
+              if (clear.has(t.id)) return { ...t, scheduledStart: undefined, protectedOverride: undefined, updatedAt: at };
+              // Moved by the user in their own calendar: their own plan now.
+              if (startById.has(t.id)) return { ...t, scheduledStart: startById.get(t.id), aiPlanned: false, updatedAt: at };
+              return t;
+            }),
+          }));
+        },
+
+        updateGoogle(patch) {
+          set((s) => ({ google: { ...s.google, ...(typeof patch === "function" ? patch(s.google) : patch) } }));
+        },
+
+        disconnectGoogle() {
+          set((s) => {
+            const left = s.calendarEvents.filter((e) => !e.sourceId.startsWith("google:"));
+            const pruned = pruneCalendar(left, s.calendarDecisions, Date.now());
+            return {
+              calendarEvents: pruned.events,
+              calendarDecisions: pruned.decisions,
+              calendarSources: s.calendarSources.filter((c) => c.kind !== "google"),
+              // Keep the calendar id: reconnecting reuses the same MiOS calendar instead of making another.
+              google: { ...GOOGLE_INITIAL, calendarId: s.google.calendarId },
+            };
+          });
+        },
+
         reset() {
           set(initialData());
         },
@@ -633,6 +710,7 @@ export const useMios = create<MiosStore>()(
         calendarSources,
         calendarEvents,
         calendarDecisions,
+        google,
       }) => ({
         tasks,
         events,
@@ -645,6 +723,7 @@ export const useMios = create<MiosStore>()(
         calendarSources,
         calendarEvents,
         calendarDecisions,
+        google,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
@@ -656,7 +735,7 @@ export const useMios = create<MiosStore>()(
 export const exportSnapshot = (): string => {
   const s = useMios.getState();
   const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = s;
-  const { calendarSources, calendarEvents, calendarDecisions } = s;
+  const { calendarSources, calendarEvents, calendarDecisions, google } = s;
   return JSON.stringify(
     {
       version: SCHEMA_VERSION,
@@ -672,6 +751,7 @@ export const exportSnapshot = (): string => {
       calendarSources,
       calendarEvents,
       calendarDecisions,
+      google: { calendarId: google.calendarId },
     },
     null,
     2,

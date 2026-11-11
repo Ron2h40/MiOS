@@ -19,14 +19,24 @@ On first launch, click **Load example tasks** to see a deadlock, a starved task 
 
 Without `GEMINI_API_KEY`, every AI feature still works using demo answers, labeled "Demo AI" in the app. Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
 
+### Google Calendar sync (optional)
+
+1. In [Google Cloud Console](https://console.cloud.google.com), create a project and enable the **Google Calendar API**.
+2. Under **Google Auth Platform**: set the app name and contact email, choose **External**, leave it in **Testing**, and add your Google account as a test user.
+3. Create an OAuth client of type **Web application** with `http://localhost:3000` as an authorized JavaScript origin. No redirect URI or client secret is needed.
+4. Put the client ID in `.env.local` as `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, then open **Calendar → Google Calendar → Connect**.
+
+While the app is in Testing, Google shows an "unverified app" screen, allows up to 100 test users, and asks for approval again every 7 days.
+
 ## Stack
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Framework | Next.js 16 (App Router) + React 19 + TypeScript (strict) | Server route handlers are ready for the Gemini proxy and Google Calendar OAuth without a separate backend |
+| Framework | Next.js 16 (App Router) + React 19 + TypeScript (strict) | Server route handlers for the Gemini proxy without a separate backend |
 | State | Zustand + `persist` (localStorage, versioned schema) | Small, testable, no boilerplate; storage can later move to a server without touching the UI |
 | Styling | CSS Modules + design tokens in `globals.css` | Styling stays separate from logic, so a redesign is a restyle, not a rewrite |
 | AI | Google Gemini `gemini-3.1-flash-lite` via REST, behind a Next.js route | Cheapest stable model with a free tier (checked Nov 2026); the key never reaches the browser |
+| Calendar | `ical.js` for .ics; Google Calendar API v3 with Google Identity Services (token model) | Time zones and repeat rules handled by a proven parser; Google sync runs in the browser with no server and no client secret |
 | Tests | Vitest | Fast unit tests for the pure domain core and AI helpers |
 
 ## Architecture
@@ -60,10 +70,12 @@ src/
 │   ├── mock.ts        Demo answers when no API key is set
 │   └── server/gemini.ts  Server-only Gemini client
 ├── integrations/    Outside formats and services. No React.
-│   └── ics.ts         E1 .ics reader (ical.js: time zones, repeats) and writer (RFC 5545)
+│   ├── ics.ts         E1 .ics reader (ical.js: time zones, repeats) and writer (RFC 5545)
+│   └── google/        E2 mapping.ts (pure sync rules) and client.ts (sign-in, Calendar API)
 ├── state/           Zustand stores: wire core rules to persistence + event log
 │   ├── store.ts       All mutations; every user decision is logged as an event
 │   ├── ai.ts          AI calls, background analysis log, pop-up stock and history
+│   ├── google.ts      E2 sync run: MiOS calendar, pull changes, push tasks, read main calendar
 │   └── hooks.ts       Derived read-side hooks (useStage, useGate, useDeadlocks …)
 ├── features/        Screens, one folder per feature (tasks, ai, calendar, focus, progress, resources, rewards, settings, shell)
 ├── ui/              Presentational primitives (Button, Card, Dialog, pills, toast)
