@@ -14,6 +14,9 @@ import type {
   AnalyzeResult,
   PopupQuestion,
 } from "@/ai/types";
+import { firebaseConfigured } from "@/integrations/firebase/client";
+import { idToken } from "@/integrations/firebase/auth";
+import type { DemoReason } from "@/ai/types";
 import { useMios } from "./store";
 
 /**
@@ -37,8 +40,9 @@ interface AiState {
   popupHistory: Record<AiFeature, string[]>;
   /** Questions ready to show per feature. */
   popupStock: Record<AiFeature, PopupQuestion[]>;
-  /** The last answer came from demo mode (no API key on the server). */
+  /** The last answer came from demo mode, and why. */
   demo: boolean;
+  demoReason?: DemoReason;
 
   recordAnalysis(result: AnalyzeResult, triggers: string[]): void;
   takePopup(feature: AiFeature): Promise<PopupQuestion | null>;
@@ -75,9 +79,11 @@ export async function callAi<K extends AiKind>(kind: K, payload: AiRequestMap[K]
   const notes = useAi.getState().log[0]?.notes ?? [];
   const now = new Date();
   try {
+    // Signed in: send the sign-in token, so the server counts this person's allowance.
+    const token = firebaseConfigured() ? await idToken().catch(() => null) : null;
     const res = await fetch("/api/ai", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({
         kind,
         payload,
@@ -90,7 +96,7 @@ export async function callAi<K extends AiKind>(kind: K, payload: AiRequestMap[K]
       }),
     });
     const body = (await res.json()) as AiResponse<K>;
-    if (body.ok) useAi.setState({ demo: body.mock });
+    if (body.ok) useAi.setState({ demo: body.mock, demoReason: body.demoReason });
     return body;
   } catch {
     return { ok: false, error: "unavailable", message: "Couldn't reach MiOS's AI service." };

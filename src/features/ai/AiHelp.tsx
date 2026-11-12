@@ -73,6 +73,8 @@ const ERROR_TEXT: Record<AiErrorCode, string> = {
   bad_response: "The AI answer didn't make sense. Try again.",
   bad_request: "That request couldn't be sent.",
   no_sources: "Google Search found no sources for that. Try asking more specifically.",
+  daily_limit: "That's today's AI requests used up. AI is back tomorrow; everything else works.",
+  signed_out: "Your sign-in has expired. Sign in again to use AI.",
 };
 
 export type AiStatus<T> =
@@ -98,6 +100,7 @@ export function AiCard<T>({
   onClose?: () => void;
 }) {
   const demo = useAi((st) => st.demo);
+  const demoReason = useAi((st) => st.demoReason);
   if (status.state === "idle") return null;
   return (
     <section className={s.card} aria-live="polite">
@@ -107,7 +110,7 @@ export function AiCard<T>({
             ✦
           </span>
           {title}
-          {status.state === "done" && demo && <span className={s.demo}>Demo AI · no API key</span>}
+          {status.state === "done" && demo && <span className={s.demo}>{demoReason === "guest" ? "Demo AI · sign in for real AI" : "Demo AI · no API key"}</span>}
         </span>
         {onClose && (
           <Button size="sm" variant="plain" onClick={onClose}>

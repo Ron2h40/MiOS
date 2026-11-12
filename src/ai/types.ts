@@ -230,8 +230,26 @@ export interface AiCall<K extends AiKind = AiKind> {
   payload: AiRequestMap[K];
 }
 
-export type AiErrorCode = "rate_limited" | "unavailable" | "bad_response" | "bad_request" | "no_sources";
+export type AiErrorCode =
+  | "rate_limited"
+  | "unavailable"
+  | "bad_response"
+  | "bad_request"
+  | "no_sources"
+  /** This person's daily allowance is used up. */
+  | "daily_limit"
+  /** The sign-in token was missing parts or expired: sign in again. */
+  | "signed_out";
+
+/** Why an answer came from the demo: no API key on the server, or a guest while guests get demo AI. */
+export type DemoReason = "no_key" | "guest";
 
 export type AiResponse<K extends AiKind = AiKind> =
-  | { ok: true; result: AiResultMap[K]; /** True when no API key is set and a demo answer was used. */ mock: boolean }
+  | {
+      ok: true;
+      result: AiResultMap[K];
+      /** True when a demo answer was used instead of Gemini. */
+      mock: boolean;
+      demoReason?: DemoReason;
+    }
   | { ok: false; error: AiErrorCode; message: string };

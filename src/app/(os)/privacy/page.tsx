@@ -15,8 +15,20 @@ export default function PrivacyPage() {
         <div className={s.prose}>
           <p>
             <strong>Where your data lives.</strong> MiOS stores your tasks, settings, activity log and AI notes in this
-            browser&apos;s local storage. There is no MiOS account or database. You can export or erase it all in
-            Settings.
+            browser&apos;s local storage. You can export or erase it all in Settings.
+          </p>
+          <p>
+            <strong>Accounts.</strong> An account is optional. If you sign in (with Google, or with an email and
+            password), MiOS also keeps a copy of your data in Google Firebase, so it follows you to other devices. Only
+            you can read it: the database refuses everyone else, and sync starts once your email is confirmed. Firebase
+            stores your email address and, for Google sign-in, your name. Signing out removes your data from this
+            browser; it stays in your account. Erasing everything in Settings while signed in erases it from your
+            account too. As a guest, nothing is stored outside this browser.
+          </p>
+          <p>
+            <strong>AI allowance.</strong> Signed-in accounts get real AI, up to 100 requests a day. For now guests get
+            real AI too; later, guests will get demo answers and real AI will need an account. MiOS counts AI requests
+            per account, or per network address for guests, and keeps only today&apos;s count.
           </p>
           <p>
             <strong>What goes to AI.</strong> At child and teen stage, MiOS sends parts of your data to Google Gemini:

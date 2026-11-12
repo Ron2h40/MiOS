@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// MiOS sync. Each person's data lives under users/{uid}/{collection}/{item},
+// and only that person can read or write it, once their email is verified
+// (Google accounts count as verified). Everything else is closed.
+//
+// The collection names must match SYNCED_COLLECTIONS in
+// src/state/syncCollections.ts. Paste this file into the Firebase console:
+// Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && (request.auth.token.email_verified == true
+            || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function knownCollection(name) {
+      return name in ['tasks', 'events', 'archive', 'repeats', 'resources', 'wraps',
+                      'calendarSources', 'calendarEvents', 'meta', 'aiLog', 'aiMeta'];
+    }
+
+    // One item: its JSON text in `v`, and the server time of the write in `t`.
+    function validItem() {
+      return request.resource.data.keys().hasOnly(['v', 't'])
+        && request.resource.data.v is string
+        && request.resource.data.v.size() < 1000000
+        && request.resource.data.t == request.time;
+    }
+
+    match /users/{uid}/{collection}/{item} {
+      allow read, delete: if isOwner(uid) && knownCollection(collection);
+      allow create, update: if isOwner(uid) && knownCollection(collection) && validItem();
+    }
+  }
+}

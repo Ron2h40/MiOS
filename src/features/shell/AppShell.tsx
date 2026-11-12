@@ -6,10 +6,12 @@ import type { ReactNode } from "react";
 import { ALL_MODES } from "@/core";
 import { AiRuntime } from "@/features/ai/AiRuntime";
 import { Onboarding } from "@/features/ai/AiDisclosure";
+import { AccountButton, AccountRuntime } from "@/features/account/Account";
 import { ReviewRuntime } from "@/features/assist/ReviewRuntime";
 import { CalendarRuntime, CheckInBanner } from "@/features/calendar/CheckIn";
 import { GoogleRuntime } from "@/features/calendar/GoogleSync";
 import { RewardBanner, StreakBadge } from "@/features/rewards/Rewards";
+import { useAccount } from "@/state/account";
 import { useHydrated, useStage } from "@/state/hooks";
 import { Toaster } from "@/ui/toast";
 import s from "./shell.module.css";
@@ -66,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
             {hydrated && <StreakBadge />}
             {hydrated && <StageBadge />}
+            {hydrated && <AccountButton />}
           </nav>
         </div>
       </header>
@@ -83,16 +86,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           <CalendarRuntime />
           <GoogleRuntime />
           <ReviewRuntime />
+          <AccountRuntime />
           <Onboarding />
         </>
       )}
 
       <footer className={s.footer}>
-        MiOS v1 · Your data stays in this browser
+        MiOS v1 · {hydrated ? <WhereDataLives /> : "Your data stays in this browser"}
         <Link href="/privacy">Privacy</Link>
       </footer>
     </div>
   );
+}
+
+/** Guests keep data in the browser; signed-in people also have it in their account. */
+function WhereDataLives() {
+  const signedIn = useAccount((st) => st.account?.verified);
+  return <>{signedIn ? "Saved in this browser and your account" : "Your data stays in this browser"}</>;
 }
 
 function StageBadge() {

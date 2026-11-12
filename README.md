@@ -28,6 +28,19 @@ Without `GEMINI_API_KEY`, every AI feature still works using demo answers, label
 
 While the app is in Testing, Google shows an "unverified app" screen, allows up to 100 test users, and asks for approval again every 7 days.
 
+### Accounts and sync (optional)
+
+Without these values MiOS runs as a guest-only app, with everything in the browser.
+
+1. In the [Firebase console](https://console.firebase.google.com), add Firebase to your Google Cloud project (the same one as Calendar and Gemini keeps everything in one place).
+2. **Authentication → Sign-in method:** enable **Google** and **Email/Password** (leave the email-link option off).
+3. **Firestore Database → Create database:** Standard edition, production mode.
+4. **Firestore Database → Rules:** paste [`firestore.rules`](firestore.rules) and click **Publish**. Until then, sync fails with "isn't allowed to sync".
+5. **Project settings → Your apps → Web:** register an app and copy `apiKey`, `authDomain`, `projectId` and `appId` into `.env.local` as the four `NEXT_PUBLIC_FIREBASE_*` values. They're public by design; the rules protect the data.
+6. Restart `npm run dev`. A **Sign in** button appears in the header.
+
+`NEXT_PUBLIC_GUEST_AI=demo` gives guests demo AI answers instead of real Gemini (the default is `real` for now).
+
 ## Stack
 
 | Layer | Choice | Why |
@@ -37,6 +50,7 @@ While the app is in Testing, Google shows an "unverified app" screen, allows up 
 | Styling | CSS Modules + design tokens in `globals.css` | Styling stays separate from logic, so a redesign is a restyle, not a rewrite |
 | AI | Google Gemini `gemini-3.1-flash-lite` via REST, behind a Next.js route | Cheapest stable model with a free tier (checked Nov 2026); the key never reaches the browser |
 | Calendar | `ical.js` for .ics; Google Calendar API v3 with Google Identity Services (token model) | Time zones and repeat rules handled by a proven parser; Google sync runs in the browser with no server and no client secret |
+| Accounts | Firebase Auth (Google, email and password) + Firestore | Optional sign-in; data syncs per item with a three-way merge; the server checks sign-in tokens with `jose` and needs no secret |
 | Tests | Vitest | Fast unit tests for the pure domain core and AI helpers |
 
 ## Architecture

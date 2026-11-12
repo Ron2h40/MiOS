@@ -2,6 +2,9 @@ import { buildArticlePrompt, buildPrompt } from "@/ai/prompts";
 import { mockResult } from "@/ai/mock";
 import { GeminiError, generateGrounded, generateJson, geminiConfigured } from "@/ai/server/gemini";
 import { searchWikipedia } from "@/ai/server/wikipedia";
+import { GUEST_AI } from "@/ai/access";
+import { verifyIdToken } from "@/ai/server/identity";
+import { takeAiRequest } from "@/ai/server/limits";
 import { AI_KINDS, type AiCall, type AiKind, type AiResponse } from "@/ai/types";
 import { parseArticleAnswer, parseResearch, parseResult } from "@/ai/validate";
 
@@ -74,8 +77,19 @@ export async function POST(request: Request) {
   if (call.context.stage === "adult") return fail("bad_request", "AI is off at adult stage.", 403);
 
   if (!geminiConfigured()) {
-    return reply({ ok: true, result: mockResult(call), mock: true });
+    return reply({ ok: true, result: mockResult(call), mock: true, demoReason: "no_key" });
   }
+
+  // Who's asking: a signed-in person (checked token) or a guest.
+  const auth = request.headers.get("authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const caller = token ? await verifyIdToken(token) : null;
+  if (token && !caller) return fail("signed_out", "Your sign-in has expired. Sign in again.", 401);
+  if (!caller && GUEST_AI === "demo") {
+    return reply({ ok: true, result: mockResult(call), mock: true, demoReason: "guest" });
+  }
+  const who = caller ? `user:${caller.uid}` : `guest:${request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local"}`;
+  if (!takeAiRequest(who)) return fail("daily_limit", "Today's AI requests are used up.", 429);
 
   try {
     const { system, user, schema } = buildPrompt(call);

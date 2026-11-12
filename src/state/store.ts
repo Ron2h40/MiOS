@@ -127,6 +127,9 @@ interface Data {
   archive: ArchivedTask[];
 }
 
+/** Everything MiOS keeps for one person (what's saved, exported and synced). */
+export type MiosData = Data;
+
 export interface GoogleState {
   /** The user connected once; sync resumes when they press Sync. */
   enabled: boolean;

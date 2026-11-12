@@ -12,7 +12,9 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "firebase": "13.3.0",
     "ical.js": "2.2.1",
+    "jose": "6.2.17",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",

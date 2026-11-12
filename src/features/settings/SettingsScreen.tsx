@@ -2,7 +2,9 @@
 
 import { useRef } from "react";
 import type { ProtectedBlock } from "@/core";
+import { aiAccessNotice } from "@/ai/access";
 import { AiDisclosureText } from "@/features/ai/AiDisclosure";
+import { useAccount } from "@/state/account";
 import { useAi } from "@/state/ai";
 import { exportSnapshot, useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
@@ -16,6 +18,7 @@ export function SettingsScreen() {
   const updateSettings = useMios((st) => st.updateSettings);
   const importData = useMios((st) => st.importData);
   const reset = useMios((st) => st.reset);
+  const synced = useAccount((st) => !!st.account?.verified);
   const toast = useToast((st) => st.show);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -141,17 +144,26 @@ export function SettingsScreen() {
       <Card title="AI and privacy" hint="What the assistant sees and where it goes.">
         <div className={s.prose}>
           <AiDisclosureText />
+          <p>{aiAccessNotice(synced)}</p>
         </div>
       </Card>
 
-      <Card title="Your data" hint="Stored in this browser. AI requests are the only thing sent out.">
+      <Card
+        title="Your data"
+        hint={
+          synced
+            ? "Stored in this browser and synced to your account. Changes here change your account too."
+            : "Stored in this browser. AI requests are the only thing sent out."
+        }
+      >
         <div className={s.row}>
           <Button onClick={download}>Export JSON</Button>
           <Button onClick={() => fileRef.current?.click()}>Import JSON</Button>
           <Button
             variant="danger"
             onClick={() => {
-              if (!confirm("Erase all tasks, stats, AI notes and settings in this browser? This can't be undone.")) return;
+              const where = synced ? "in your account and on every device" : "in this browser";
+              if (!confirm(`Erase all tasks, stats, AI notes and settings ${where}? This can't be undone.`)) return;
               reset();
               useAi.getState().reset();
             }}
