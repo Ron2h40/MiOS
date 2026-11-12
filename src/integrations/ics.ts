@@ -3,6 +3,7 @@ import {
   CALENDAR_WINDOW,
   MINUTE_MS,
   miosUid,
+  splitKey,
   normalizeColor,
   taskIdFromUid,
   type CalendarEvent,
@@ -66,8 +67,13 @@ export const parseIcs = (text: string, sourceId: string, now: number): ParsedCal
   }
 
   const events: CalendarEvent[] = [];
-  const make = (ev: ICAL.Event, start: ICAL.Time, end: ICAL.Time, key: string, recurring: boolean): CalendarEvent => {
-    const uid = ev.uid.trim();
+  const make = (ev: ICAL.Event, start: ICAL.Time, end: ICAL.Time, mapKey: string, recurringHere: boolean): CalendarEvent => {
+    // A calendar item MiOS exported carries its original id, so it's recognised when it comes back.
+    const exportedKey = ev.component.getFirstPropertyValue("x-mios-key");
+    const key = typeof exportedKey === "string" && exportedKey.trim() ? exportedKey.trim() : mapKey;
+    const exported = key === mapKey ? undefined : splitKey(key);
+    const recurring = exported ? !!exported.original : recurringHere;
+    const uid = exported ? exported.uid : ev.uid.trim();
     const transp = ev.component.getFirstPropertyValue("transp");
     const miosTaskId =
       (ev.component.getFirstPropertyValue("x-mios-task-id") as string | null) ?? taskIdFromUid(uid) ?? undefined;
@@ -147,16 +153,43 @@ const utc = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, "").repl
 
 export interface ExportOptions {
   includeDeadlines: boolean;
+  /** Calendar items to add, already picked by `exportableEvents`. */
+  events?: readonly CalendarEvent[];
+  /** Calendar names by id, written as each item's category. */
+  calendarNames?: ReadonlyMap<string, string>;
 }
+
+const localDate = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** All-day items end on the next day at the earliest (DTEND is exclusive). */
+const allDayEnd = (e: CalendarEvent): string => {
+  const s = new Date(e.start);
+  const next = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1).toISOString();
+  return localDate(Date.parse(e.end) > Date.parse(next) ? e.end : next);
+};
+
+/**
+ * One occurrence of a repeating item becomes its own event: a lone
+ * occurrence without its series isn't read the same way by every app.
+ * One-off items keep their UID, so the app they came from sees the same event.
+ */
+const exportUid = (e: CalendarEvent): string => {
+  const { uid, original } = splitKey(e.key);
+  return original ? `${uid}_R${utc(Date.parse(original))}` : e.key;
+};
 
 /** How long a deadline marker is in other calendars. */
 export const DUE_MARKER_MINUTES = 15;
 
 /**
  * Every unfinished task with a planned start (a block as long as the time
- * guess) and, optionally, every deadline (a short "Due: …" marker). UIDs are
- * stable, so importing the file anywhere twice updates instead of duplicating,
- * and importing it back into MiOS is recognised as MiOS's own tasks.
+ * guess) and, optionally, every deadline (a short "Due: …" marker), plus any
+ * calendar items passed in. UIDs are stable, so importing the file anywhere
+ * twice updates instead of duplicating, and importing it back into MiOS is
+ * recognised: tasks as MiOS's own, calendar items as the items already there.
  */
 export const buildIcs = (
   tasks: readonly Task[],
@@ -190,6 +223,25 @@ export const buildIcs = (
     if (opts.includeDeadlines && t.deadline) {
       vevent(miosUid.due(t.id), t.id, `Due: ${t.title}`, Date.parse(t.deadline), DUE_MARKER_MINUTES, t.updatedAt);
     }
+  }
+
+  for (const e of opts.events ?? []) {
+    const calendar = opts.calendarNames?.get(e.sourceId);
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${text(exportUid(e))}`,
+      `DTSTAMP:${stamp}`,
+      ...(e.allDay
+        ? [`DTSTART;VALUE=DATE:${localDate(e.start)}`, `DTEND;VALUE=DATE:${allDayEnd(e)}`]
+        : [`DTSTART:${utc(Date.parse(e.start))}`, `DTEND:${utc(Date.parse(e.end))}`]),
+      `SUMMARY:${text(e.title)}`,
+      ...(e.location ? [`LOCATION:${text(e.location)}`] : []),
+      ...(e.free ? ["TRANSP:TRANSPARENT"] : []),
+      ...(calendar ? [`CATEGORIES:${text(calendar)}`] : []),
+      `X-MIOS-KEY:${text(e.key)}`,
+      "END:VEVENT",
+    );
+    count++;
   }
   lines.push("END:VCALENDAR");
   return { ics: lines.map(fold).join("\r\n") + "\r\n", count };

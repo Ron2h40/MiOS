@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { CALENDAR_COLORS, dayKey, getMode, type CalendarEvent, type CalendarSource, type MergeReport } from "@/core";
+import { CALENDAR_COLORS, dayKey, exportableEvents, getMode, type CalendarEvent, type CalendarSource, type MergeReport } from "@/core";
 import { buildIcs, parseIcs } from "@/integrations/ics";
 import { useAgenda, useCalendarLooks, useNow, usePendingToday } from "@/state/hooks";
 import { useMios } from "@/state/store";
@@ -11,7 +11,7 @@ import { DayList } from "./AgendaList";
 import { CheckInDialog } from "./CheckIn";
 import { GoogleCard } from "./GoogleSync";
 import s from "./calendar.module.css";
-import { calStyle, lookOf } from "./colors";
+import { calStyle, lookOf, MIOS_LOOK } from "./colors";
 
 const DAYS_SHOWN = 7;
 
@@ -39,6 +39,8 @@ export function CalendarScreen() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [checkIn, setCheckIn] = useState(false);
   const [withDeadlines, setWithDeadlines] = useState(true);
+  const [exportIds, setExportIds] = useState<string[]>([]);
+  const looks = useCalendarLooks();
 
   const today = useMemo(() => new Date(Date.parse(now)), [now]);
   const agenda = useAgenda(today, DAYS_SHOWN, now);
@@ -61,10 +63,34 @@ export function CalendarScreen() {
     if (lines.length) toast(lines.join(" "));
   };
 
-  const exportable = useMemo(() => buildIcs(tasks, settings, { includeDeadlines: withDeadlines }, 0).count, [tasks, settings, withDeadlines]);
+  // Outside calendars to offer, and what each would add (items with a MiOS task go out once, as MiOS's).
+  const outside = useMemo(() => sources.filter((c) => !c.mios), [sources]);
+  const offered = useMemo(
+    () => exportableEvents(events, sources, tasks, outside.map((c) => c.id)),
+    [events, sources, tasks, outside],
+  );
+  const picked = useMemo(
+    () => offered.filter((e) => exportIds.includes(e.sourceId) || !outside.some((c) => c.id === e.sourceId)),
+    [offered, exportIds, outside],
+  );
+  const exportOptions = useMemo(
+    () => ({ includeDeadlines: withDeadlines, events: picked, calendarNames: new Map(sources.map((c) => [c.id, c.mios ? "MiOS" : c.name])) }),
+    [withDeadlines, picked, sources],
+  );
+  const exportable = useMemo(() => buildIcs(tasks, settings, exportOptions, 0).count, [tasks, settings, exportOptions]);
+  const miosEvents = useMemo(() => picked.filter((e) => !outside.some((c) => c.id === e.sourceId)), [picked, outside]);
+  const miosCount = useMemo(
+    () => buildIcs(tasks, settings, { ...exportOptions, events: miosEvents }, 0).count,
+    [tasks, settings, exportOptions, miosEvents],
+  );
+  const offeredBySource = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of offered) m.set(e.sourceId, (m.get(e.sourceId) ?? 0) + 1);
+    return m;
+  }, [offered]);
 
   const download = () => {
-    const { ics, count } = buildIcs(tasks, settings, { includeDeadlines: withDeadlines }, Date.now());
+    const { ics, count } = buildIcs(tasks, settings, exportOptions, Date.now());
     const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
@@ -157,6 +183,34 @@ export function CalendarScreen() {
       </Card>
 
       <Card title="Export" hint="One-way: a file you can open in Google, Outlook or Apple Calendar. Importing it again updates the same events.">
+        <fieldset className={s.exportPick}>
+          <legend className={s.exportLegend}>Calendars in the file</legend>
+          <label className={s.pick} style={calStyle(MIOS_LOOK.color)}>
+            <input type="checkbox" checked disabled />
+            <span className={s.swatch} aria-hidden />
+            <strong>MiOS</strong>
+            <span className={s.sourceMeta}>
+              {miosCount} {miosCount === 1 ? "item" : "items"} · always included
+            </span>
+          </label>
+          {outside.map((c) => {
+            const n = offeredBySource.get(c.id) ?? 0;
+            return (
+              <label key={c.id} className={s.pick} style={calStyle(lookOf(c.id, looks).color)}>
+                <input
+                  type="checkbox"
+                  checked={exportIds.includes(c.id)}
+                  onChange={(e) => setExportIds((ids) => (e.target.checked ? [...ids, c.id] : ids.filter((id) => id !== c.id)))}
+                />
+                <span className={s.swatch} aria-hidden />
+                <strong>{c.name}</strong>
+                <span className={s.sourceMeta}>
+                  {n} {n === 1 ? "item" : "items"}
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
         <div className={s.actions}>
           <label className={s.inline}>
             <input type="checkbox" checked={withDeadlines} onChange={(e) => setWithDeadlines(e.target.checked)} />
@@ -166,7 +220,13 @@ export function CalendarScreen() {
             Download .ics ({exportable})
           </Button>
         </div>
-        <p className={s.note}>Tasks with a planned start go out as blocks as long as your time guess. Finished tasks stay out.</p>
+        <p className={s.note}>
+          Tasks with a planned start go out as blocks as long as your time guess. Finished tasks stay out. A calendar item you
+          added to MiOS goes out once, as a MiOS task.
+          {outside.length > 0 &&
+            " Importing the file into the app a calendar came from? Leave that calendar out, or its repeating items will" +
+              " show up twice."}
+        </p>
       </Card>
 
       {seriesAnswers.length > 0 && (

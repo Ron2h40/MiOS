@@ -129,6 +129,17 @@ export const miosUid = {
   due: (taskId: string) => `due-${taskId}@mios`,
 };
 
+/**
+ * An item's key split into its UID and, for one occurrence of a repeat, the
+ * original start. Only a real date after the last "|" counts, since a UID
+ * can contain "|" itself.
+ */
+export const splitKey = (key: string): { uid: string; original?: ISODateTime } => {
+  const i = key.lastIndexOf("|");
+  const original = i > 0 ? key.slice(i + 1) : "";
+  return original && !Number.isNaN(Date.parse(original)) ? { uid: key.slice(0, i), original } : { uid: key };
+};
+
 /** The task id behind a MiOS-written UID, or undefined. */
 export const taskIdFromUid = (uid: string): string | undefined => /^(?:task|due)-(.+)@mios$/i.exec(uid.trim())?.[1];
 
@@ -230,6 +241,38 @@ export const mergeEvents = (
   }
 
   return { events: [...byKey.values()].sort((a, b) => a.start.localeCompare(b.start)), report };
+};
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+/**
+ * Calendar items that go into an export next to MiOS's own tasks, from the
+ * chosen calendars. MiOS's own calendar in an outside service always comes
+ * along, since it's part of MiOS. An item that has a MiOS task is left out:
+ * the task is exported as MiOS's, so it appears once. So are copies of
+ * MiOS's own exports that came back in through a calendar, and any item a
+ * second time under another id.
+ */
+export const exportableEvents = (
+  events: readonly CalendarEvent[],
+  sources: readonly Pick<CalendarSource, "id" | "mios">[],
+  tasks: readonly Task[],
+  include: readonly string[],
+): CalendarEvent[] => {
+  const chosen = new Set([...include, ...sources.filter((c) => c.mios).map((c) => c.id)]);
+  const known = new Set(sources.map((c) => c.id));
+  const seen = new Set<string>();
+  return events.filter((e) => {
+    if (!chosen.has(e.sourceId) || !known.has(e.sourceId)) return false;
+    if (e.miosTaskId || taskIdFromUid(e.uid) || linkedTaskId(e, tasks)) return false;
+    const print = eventFingerprint(e);
+    if (seen.has(e.key) || seen.has(print)) return false;
+    seen.add(e.key);
+    seen.add(print);
+    return true;
+  });
 };
 
 /** Drop events that ended before the kept window, and answers that only pointed at them. */
