@@ -65,7 +65,7 @@ export function SignInDialog({ onClose, start = "signin" }: { onClose: () => voi
     if (mode === "reset") {
       void run(async () => {
         await resetPassword(email);
-        setNotice(`If ${email.trim()} has an account, a reset link is on its way. Check your inbox.`);
+        setNotice(`If ${email.trim()} has an account, a reset link is on its way. Check your inbox, and your spam or junk folder.`);
       });
     } else if (mode === "signup") {
       if (password !== confirm) return; // the message is already under the box
@@ -184,6 +184,9 @@ export function SignInDialog({ onClose, start = "signin" }: { onClose: () => voi
   );
 }
 
+/** Firebase sends account emails from noreply@ the project's sign-in domain. */
+const SENDER = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? `noreply@${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}` : "";
+
 /** After signing up with email: verify, then sync starts. */
 export function VerifyDialog({ onClose }: { onClose: () => void }) {
   const account = useAccount((st) => st.account);
@@ -225,6 +228,10 @@ export function VerifyDialog({ onClose }: { onClose: () => void }) {
       <p className={s.lead}>
         MiOS sent a link to <strong>{account?.email}</strong>. Open it to confirm the address; syncing starts after that.
         Until then, MiOS keeps working in this browser.
+      </p>
+      <p className={s.notice}>
+        Don&apos;t see it? Check your <strong>spam or junk</strong> folder; it can take a minute to arrive.
+        {SENDER && ` It comes from ${SENDER}.`}
       </p>
       <p className={s.switch}>
         <button
