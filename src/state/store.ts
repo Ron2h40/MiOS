@@ -18,6 +18,9 @@ import {
   type RepeatTiming,
   mergeEvents,
   pruneCalendar,
+  fillCalendarColors,
+  nextCalendarColor,
+  normalizeColor,
   taskInputFromEvent,
   taskProtectedConflicts,
   type CalendarDecision,
@@ -198,7 +201,8 @@ interface Actions {
   saveWrap(wrap: Wrap): void;
 
   /** E1: merge a parsed .ics file. Re-importing the same file changes nothing. */
-  importCalendar(input: { fileName: string; name?: string; events: CalendarEvent[] }): MergeReport;
+  importCalendar(input: { fileName: string; name?: string; color?: string; events: CalendarEvent[] }): MergeReport;
+  setCalendarColor(sourceId: string, color: string): void;
   removeCalendar(sourceId: string): void;
   /** E: the morning check-in. Each item becomes a task or busy time. */
   sortCalendarItems(answers: CalendarAnswer[]): { added: number };
@@ -216,7 +220,15 @@ interface Actions {
   purgeArchived(id: string): void;
 
   /** E2: calendar items read from Google. `full` replaces that calendar's items. */
-  applyGoogleItems(input: { sourceId: string; name: string; items: CalendarEvent[]; removedIds: string[]; full: boolean }): void;
+  applyGoogleItems(input: {
+    sourceId: string;
+    name: string;
+    /** MiOS's own calendar in Google: shown in MiOS's colour. */
+    mios?: boolean;
+    items: CalendarEvent[];
+    removedIds: string[];
+    full: boolean;
+  }): void;
   /** E2: the user moved or deleted MiOS blocks in Google. Tasks are never deleted. */
   applyGoogleTaskChanges(moves: { taskId: string; start: ISODateTime }[], cleared: string[]): void;
   updateGoogle(patch: Partial<GoogleState> | ((g: GoogleState) => Partial<GoogleState>)): void;
@@ -603,7 +615,7 @@ export const useMios = create<MiosStore>()(
               tolerances: parsed.tolerances ?? {},
               celebrated: parsed.celebrated ?? {},
               wraps: Array.isArray(parsed.wraps) ? parsed.wraps : [],
-              calendarSources: Array.isArray(parsed.calendarSources) ? parsed.calendarSources : [],
+              calendarSources: fillCalendarColors(Array.isArray(parsed.calendarSources) ? parsed.calendarSources : []),
               calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
               calendarDecisions: parsed.calendarDecisions ?? {},
               // A different browser has no Google sign-in; keep only the MiOS calendar id so it's reused.
@@ -649,12 +661,22 @@ export const useMios = create<MiosStore>()(
           }));
         },
 
-        importCalendar({ fileName, name, events }) {
+        importCalendar({ fileName, name, color, events }) {
           const at = now();
-          const existing = get().calendarSources.find((c) => c.kind === "ics" && c.fileName === fileName);
+          const others = get().calendarSources;
+          const existing = others.find((c) => c.kind === "ics" && c.fileName === fileName);
+          // A colour the user picked stays; otherwise the file's own, otherwise the next free one.
+          const fileColor = normalizeColor(color);
           const source: CalendarSource = existing
-            ? { ...existing, name: name ?? existing.name, importedAt: at }
-            : { id: uid(), kind: "ics", name: name ?? fileName.replace(/\.ics$/i, ""), fileName, importedAt: at };
+            ? { ...existing, name: name ?? existing.name, importedAt: at, color: existing.color ?? fileColor ?? nextCalendarColor(others) }
+            : {
+                id: uid(),
+                kind: "ics",
+                name: name ?? fileName.replace(/\.ics$/i, ""),
+                fileName,
+                importedAt: at,
+                color: fileColor ?? nextCalendarColor(others),
+              };
           const { events: merged, report } = mergeEvents(
             get().calendarEvents,
             events.map((e) => ({ ...e, sourceId: source.id })),
@@ -668,6 +690,12 @@ export const useMios = create<MiosStore>()(
             calendarSources: keep ? [...s.calendarSources.filter((c) => c.id !== source.id), source] : s.calendarSources,
           }));
           return report;
+        },
+
+        setCalendarColor(sourceId, color) {
+          const c = normalizeColor(color);
+          if (!c) return;
+          set((s) => ({ calendarSources: s.calendarSources.map((x) => (x.id === sourceId ? { ...x, color: c } : x)) }));
         },
 
         removeCalendar(sourceId) {
@@ -764,7 +792,8 @@ export const useMios = create<MiosStore>()(
 
         runDaily() {
           const nowMs = Date.now();
-          set((s) => ({ archive: pruneArchive(s.archive, nowMs) }));
+          // Calendars saved before colours existed get one here.
+          set((s) => ({ archive: pruneArchive(s.archive, nowMs), calendarSources: fillCalendarColors(s.calendarSources) }));
           const pruned = pruneCalendar(get().calendarEvents, get().calendarDecisions, nowMs);
           set({ calendarEvents: pruned.events, calendarDecisions: pruned.decisions });
           const due = autoTasksToday(get().calendarEvents, get().calendarDecisions, get().tasks, nowMs);
@@ -797,15 +826,22 @@ export const useMios = create<MiosStore>()(
           return due.length + occurrences.length;
         },
 
-        applyGoogleItems({ sourceId, name, items, removedIds, full }) {
+        applyGoogleItems({ sourceId, name, mios, items, removedIds, full }) {
           set((s) => {
             const removed = new Set(removedIds);
             const kept = s.calendarEvents.filter((e) =>
               full ? e.sourceId !== sourceId : !(e.externalId && removed.has(e.externalId)),
             );
             const { events } = mergeEvents(kept, items.map((e) => ({ ...e, sourceId })), s.tasks, Date.now());
-            const has = s.calendarSources.some((c) => c.id === sourceId);
-            const source: CalendarSource = { id: sourceId, kind: "google", name, importedAt: now() };
+            const old = s.calendarSources.find((c) => c.id === sourceId);
+            const has = !!old;
+            const source: CalendarSource = {
+              id: sourceId,
+              kind: "google",
+              name,
+              importedAt: now(),
+              ...(mios ? { mios: true } : { color: old?.color ?? nextCalendarColor(s.calendarSources) }),
+            };
             return {
               calendarEvents: events,
               calendarSources: has ? s.calendarSources.map((c) => (c.id === sourceId ? source : c)) : [...s.calendarSources, source],

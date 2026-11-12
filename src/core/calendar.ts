@@ -42,7 +42,48 @@ export interface CalendarSource {
   /** For .ics files: the file's own name, to recognise a re-import. */
   fileName?: string;
   importedAt: ISODateTime;
+  /** The colour this calendar's items show in (#rrggbb). MiOS's own items use the app accent. */
+  color?: string;
+  /** MiOS's own calendar kept in an outside service: it shows in MiOS's colour, not one of its own. */
+  mios?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Colours
+// ---------------------------------------------------------------------------
+
+/**
+ * Colours for outside calendars, picked to read on light and dark
+ * backgrounds. There's no blue: blue is MiOS's own.
+ */
+export const CALENDAR_COLORS = ["#e8590c", "#2f9e44", "#ae3ec9", "#d6336c", "#0c8599", "#e8a400", "#c92a2a", "#868e96"] as const;
+
+/** A colour from a calendar file (#rgb, #rrggbb or #rrggbbaa) as #rrggbb. Anything else is ignored. */
+export const normalizeColor = (raw: unknown): string | undefined => {
+  if (typeof raw !== "string") return undefined;
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(raw.trim());
+  if (!m) return undefined;
+  const hex = m[1].toLowerCase();
+  return `#${hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex.slice(0, 6)}`;
+};
+
+/** The first colour no calendar uses yet; once all are taken, they go round again. */
+export const nextCalendarColor = (sources: readonly Pick<CalendarSource, "color">[]): string => {
+  const used = new Set(sources.map((c) => c.color));
+  return CALENDAR_COLORS.find((c) => !used.has(c)) ?? CALENDAR_COLORS[sources.length % CALENDAR_COLORS.length];
+};
+
+/** Every calendar with a colour. Calendars that have one keep it; the list comes back as is if nothing was missing. */
+export const fillCalendarColors = (sources: readonly CalendarSource[]): CalendarSource[] => {
+  if (sources.every((c) => c.color || c.mios)) return sources as CalendarSource[];
+  const taken: CalendarSource[] = sources.filter((c) => c.color);
+  return sources.map((c) => {
+    if (c.color || c.mios) return c;
+    const filled = { ...c, color: nextCalendarColor(taken) };
+    taken.push(filled);
+    return filled;
+  });
+};
 
 /** The morning check-in answer for an item. */
 export interface CalendarDecision {
@@ -268,6 +309,8 @@ export const autoTasksToday = (
 export interface BusyInterval {
   id: string;
   label: string;
+  /** The calendar it's on, by name. */
+  calendar?: string;
   start: ISODateTime;
   end: ISODateTime;
 }
@@ -281,14 +324,20 @@ export const busyIntervals = (
   events: readonly CalendarEvent[],
   decisions: Decisions,
   tasks: readonly Task[],
-): BusyInterval[] =>
-  events
+  sources: readonly Pick<CalendarSource, "id" | "name">[] = [],
+): BusyInterval[] => {
+  const names = new Map(sources.map((c) => [c.id, c.name]));
+  return events
     .filter((e) => !e.allDay && !e.free)
     .filter((e) => {
       const k = calendarStatus(e, decisions, tasks).kind;
       return k === "busy" || k === "pending";
     })
-    .map((e) => ({ id: e.key, label: e.title, start: e.start, end: e.end }));
+    .map((e) => {
+      const calendar = names.get(e.sourceId);
+      return { id: e.key, label: e.title, ...(calendar ? { calendar } : {}), start: e.start, end: e.end };
+    });
+};
 
 /**
  * What a repeating item's time means ("How do you want it repeated?"):

@@ -36,6 +36,8 @@ export interface AgendaItem {
   allDay?: boolean;
   mode?: TaskModeId;
   taskId?: string;
+  /** The outside calendar an item is on. Unset for MiOS's own items (tasks, deadlines, repeats). */
+  sourceId?: string;
 }
 
 export interface AgendaInput {
@@ -67,7 +69,15 @@ export const buildAgenda = (input: AgendaInput, fromDay: Date, days: number, now
     if (status.kind === "task") continue; // the task itself is listed
     const kind: AgendaKind =
       status.kind === "pending" ? "pending" : status.kind === "auto-task" ? "auto" : e.allDay || e.free ? "free" : "busy";
-    put({ id: `e-${e.key}`, kind, title: e.title, start: Date.parse(e.start), end: Date.parse(e.end), allDay: e.allDay });
+    put({
+      id: `e-${e.key}`,
+      kind,
+      title: e.title,
+      start: Date.parse(e.start),
+      end: Date.parse(e.end),
+      allDay: e.allDay,
+      sourceId: e.sourceId,
+    });
   }
 
   // Repeats that haven't become tasks yet: tomorrow onward (today's is made in the morning).

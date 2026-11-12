@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { dayKey, type AgendaItem, type ModeId } from "@/core";
-import { useAgenda, useNow } from "@/state/hooks";
+import { useAgenda, useCalendarLooks, useNow, type CalendarLook } from "@/state/hooks";
 import { Card } from "@/ui/primitives";
 import { DayList, timeLabel } from "./AgendaList";
 import s from "./calendar.module.css";
+import { calStyle, lookOf, MIOS_LOOK } from "./colors";
 
 type View = "day" | "week" | "month";
 
@@ -48,6 +49,7 @@ export function MiniCalendar({ mode }: { mode: ModeId }) {
     return { from: weekStart(new Date(at.getFullYear(), at.getMonth(), 1)), days: 42 };
   }, [view, at]);
   const agenda = useAgenda(range.from, range.days, now);
+  const looks = useCalendarLooks();
 
   const step = (dir: 1 | -1) => {
     if (view === "day") setCursor(addDays(at, dir));
@@ -132,7 +134,7 @@ export function MiniCalendar({ mode }: { mode: ModeId }) {
                 <span className={s.weekItems}>
                   {items.length === 0 && <span className={s.empty}>—</span>}
                   {items.slice(0, PER_DAY_IN_WEEK).map((it) => (
-                    <span key={it.id} className={`${s.weekItem} ${kindClass(it)}`}>
+                    <span key={it.id} className={`${s.weekItem} ${kindClass(it)}`} style={calStyle(lookOf(it.sourceId, looks).color)}>
                       <span className={s.dot} aria-hidden />
                       <span className={s.weekTime}>{timeLabel(it)}</span> {it.title}
                     </span>
@@ -166,7 +168,7 @@ export function MiniCalendar({ mode }: { mode: ModeId }) {
                 <span className={s.monthNum}>{d.getDate()}</span>
                 <span className={s.monthDots} aria-hidden>
                   {items.slice(0, 3).map((it) => (
-                    <span key={it.id} className={`${s.dot} ${kindClass(it)}`} />
+                    <span key={it.id} className={`${s.dot} ${kindClass(it)}`} style={calStyle(lookOf(it.sourceId, looks).color)} />
                   ))}
                 </span>
               </button>
@@ -177,16 +179,15 @@ export function MiniCalendar({ mode }: { mode: ModeId }) {
 
       {view !== "day" && (
         <p className={s.legend} aria-hidden>
-          <span className={s.k_task}>
-            <span className={s.dot} /> Task
-          </span>
-          <span className={s.k_due}>
+          {[MIOS_LOOK, ...[...looks.values()].filter((l) => !l.mios)].map((l: CalendarLook) => (
+            <span key={l.name + l.color} style={calStyle(l.color)}>
+              <span className={s.dot} /> {l.name}
+            </span>
+          ))}
+          <span className={s.k_due} style={calStyle(MIOS_LOOK.color)}>
             <span className={s.dot} /> Due
           </span>
-          <span className={s.k_busy}>
-            <span className={s.dot} /> Busy
-          </span>
-          <span className={s.k_repeat}>
+          <span className={s.k_repeat} style={calStyle(MIOS_LOOK.color)}>
             <span className={s.dot} /> Repeats
           </span>
         </p>
@@ -195,18 +196,14 @@ export function MiniCalendar({ mode }: { mode: ModeId }) {
   );
 }
 
+/** The dot's colour is the calendar; its shape says what kind of item it is. */
 const kindClass = (it: AgendaItem): string => {
   switch (it.kind) {
-    case "task":
-    case "auto":
-      return s.k_task;
     case "due":
       return s.k_due;
     case "repeat":
       return s.k_repeat;
-    case "pending":
-      return s.k_pending;
     default:
-      return s.k_busy;
+      return "";
   }
 };

@@ -15,6 +15,8 @@ export interface ProtectedConflict {
   /** What's in the way, e.g. "Sleep" or a calendar event's title. */
   label: string;
   kind: "protected" | "calendar";
+  /** For calendar conflicts: which calendar, by name. */
+  calendar?: string;
   start: Date;
   end: Date;
 }
@@ -54,7 +56,13 @@ export const findProtectedConflicts = (
   );
   const calendarHits = busy
     .filter((b) => toMs(b.start) < to.getTime() && toMs(b.end) > from.getTime())
-    .map((b) => ({ label: b.label, kind: "calendar" as const, start: new Date(b.start), end: new Date(b.end) }));
+    .map((b) => ({
+      label: b.label,
+      kind: "calendar" as const,
+      ...(b.calendar ? { calendar: b.calendar } : {}),
+      start: new Date(b.start),
+      end: new Date(b.end),
+    }));
   return [...protectedHits, ...calendarHits];
 };
 

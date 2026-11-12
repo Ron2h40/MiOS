@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { dayKey, getMode, type CalendarEvent, type MergeReport } from "@/core";
+import { CALENDAR_COLORS, dayKey, getMode, type CalendarEvent, type CalendarSource, type MergeReport } from "@/core";
 import { buildIcs, parseIcs } from "@/integrations/ics";
-import { useAgenda, useNow, usePendingToday } from "@/state/hooks";
+import { useAgenda, useCalendarLooks, useNow, usePendingToday } from "@/state/hooks";
 import { useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
@@ -11,6 +11,7 @@ import { DayList } from "./AgendaList";
 import { CheckInDialog } from "./CheckIn";
 import { GoogleCard } from "./GoogleSync";
 import s from "./calendar.module.css";
+import { calStyle, lookOf } from "./colors";
 
 const DAYS_SHOWN = 7;
 
@@ -32,7 +33,6 @@ export function CalendarScreen() {
   const decisions = useMios((st) => st.calendarDecisions);
   const sources = useMios((st) => st.calendarSources);
   const importCalendar = useMios((st) => st.importCalendar);
-  const removeCalendar = useMios((st) => st.removeCalendar);
   const forget = useMios((st) => st.forgetCalendarDecision);
   const pending = usePendingToday(now);
   const toast = useToast((t) => t.show);
@@ -51,7 +51,7 @@ export function CalendarScreen() {
     for (const f of files) {
       try {
         const parsed = parseIcs(await f.text(), "import", Date.now());
-        const report = importCalendar({ fileName: f.name, name: parsed.name, events: parsed.events });
+        const report = importCalendar({ fileName: f.name, name: parsed.name, color: parsed.color, events: parsed.events });
         lines.push(reportLine(parsed.name ?? f.name, report));
       } catch {
         toast(`Couldn't read ${f.name}. Is it an .ics calendar file?`, "warn");
@@ -148,29 +148,7 @@ export function CalendarScreen() {
         {sources.length ? (
           <ul className={s.sources}>
             {sources.map((c) => (
-              <li key={c.id} className={s.source}>
-                <span>
-                  <strong>{c.name}</strong>
-                  <span className={s.sourceMeta}>
-                    {" "}
-                    · {countBySource.get(c.id) ?? 0} items · {c.kind === "ics" ? "imported" : "synced"}{" "}
-                    {new Date(c.importedAt).toLocaleDateString()}
-                  </span>
-                </span>
-                {c.kind === "ics" ? (
-                  <Button
-                    size="sm"
-                    variant="plain"
-                    onClick={() => {
-                      if (confirm(`Remove ${c.name}? Its items leave MiOS. Tasks you already made from it stay.`)) removeCalendar(c.id);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                ) : (
-                  <span className={s.sourceMeta}>Synced</span>
-                )}
-              </li>
+              <SourceRow key={c.id} source={c} count={countBySource.get(c.id) ?? 0} />
             ))}
           </ul>
         ) : (
@@ -214,5 +192,66 @@ export function CalendarScreen() {
 
       <CheckInDialog open={checkIn} onClose={() => setCheckIn(false)} />
     </div>
+  );
+}
+
+/** One calendar in the list: its color (click to change), name, item count, and Remove for files. */
+function SourceRow({ source: c, count }: { source: CalendarSource; count: number }) {
+  const removeCalendar = useMios((st) => st.removeCalendar);
+  const setCalendarColor = useMios((st) => st.setCalendarColor);
+  const look = lookOf(c.id, useCalendarLooks());
+  const [picking, setPicking] = useState(false);
+  return (
+    <li className={s.source} style={calStyle(look.color)}>
+      <span className={s.sourceName}>
+        {look.mios ? (
+          <span className={s.swatch} title="Shown in MiOS's color" aria-hidden />
+        ) : (
+          <button
+            type="button"
+            className={s.swatch}
+            aria-label={`Color for ${c.name}`}
+            aria-expanded={picking}
+            onClick={() => setPicking((p) => !p)}
+          />
+        )}
+        <strong>{c.name}</strong>
+        <span className={s.sourceMeta}>
+          {count} items · {c.kind === "ics" ? "imported" : "synced"} {new Date(c.importedAt).toLocaleDateString()}
+        </span>
+      </span>
+      {c.kind === "ics" ? (
+        <Button
+          size="sm"
+          variant="plain"
+          onClick={() => {
+            if (confirm(`Remove ${c.name}? Its items leave MiOS. Tasks you already made from it stay.`)) removeCalendar(c.id);
+          }}
+        >
+          Remove
+        </Button>
+      ) : (
+        <span className={s.sourceMeta}>Synced</span>
+      )}
+      {picking && (
+        <div className={s.palette} role="radiogroup" aria-label={`Color for ${c.name}`}>
+          {CALENDAR_COLORS.map((col) => (
+            <button
+              key={col}
+              type="button"
+              role="radio"
+              aria-checked={look.color === col}
+              aria-label={col}
+              className={s.swatch}
+              style={calStyle(col)}
+              onClick={() => {
+                setCalendarColor(c.id, col);
+                setPicking(false);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </li>
   );
 }

@@ -12,7 +12,7 @@ import {
   type RepeatTiming,
   type TaskModeId,
 } from "@/core";
-import { useNow, usePendingToday } from "@/state/hooks";
+import { useCalendarLooks, useNow, usePendingToday } from "@/state/hooks";
 import { TaskFields, type TaskDraft } from "@/features/tasks/TaskFields";
 import tasks from "@/features/tasks/tasks.module.css";
 import { useMios, type CalendarAnswer } from "@/state/store";
@@ -20,6 +20,7 @@ import { formatTime } from "@/ui/format";
 import { Button, Dialog } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import s from "./calendar.module.css";
+import { calStyle, lookOf } from "./colors";
 
 /** When an item happens, for a row label. */
 export const eventTime = (e: Pick<CalendarEvent, "allDay" | "start" | "end">): string =>
@@ -96,6 +97,7 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
   const pending = usePendingToday(now);
   const settings = useMios((st) => st.settings);
   const sortCalendarItems = useMios((st) => st.sortCalendarItems);
+  const looks = useCalendarLooks();
   const toast = useToast((t) => t.show);
   const [items] = useState<CalendarEvent[]>(pending);
   const [rows, setRows] = useState<Record<string, Row>>({});
@@ -168,12 +170,17 @@ function CheckInWindow({ onClose }: { onClose: () => void }) {
                 : input.scheduledStart
                   ? findProtectedConflicts(input.scheduledStart, minutes, settings.protectedBlocks)[0]
                   : undefined;
+          const look = lookOf(e.sourceId, looks);
           return (
             <li key={e.key} className={s.checkRow}>
-              <div className={s.checkHead}>
+              <div className={s.checkHead} style={calStyle(look.color)}>
+                <span className={s.calBar} aria-hidden />
                 <span className={s.time}>{eventTime(e)}</span>
                 <span className={s.title}>{e.title}</span>
                 {e.location && <span className={s.where}>{e.location}</span>}
+                <span className={s.calName}>
+                  <span className={s.dot} aria-hidden /> {look.name}
+                </span>
               </div>
               <div className={s.choices} role="group" aria-label={`Sort ${e.title}`}>
                 <button type="button" className={s.choice} aria-pressed={r.choice === "task"} onClick={() => update(e, { choice: "task" })}>

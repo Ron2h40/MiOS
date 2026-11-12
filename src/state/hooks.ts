@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   buildAgenda,
   busyIntervals,
+  fillCalendarColors,
   pendingToday,
   averageLevels,
   buildWrap,
@@ -163,7 +164,33 @@ export const useBusy = () => {
   const events = useMios((s) => s.calendarEvents);
   const decisions = useMios((s) => s.calendarDecisions);
   const tasks = useMios((s) => s.tasks);
-  return useMemo(() => busyIntervals(events, decisions, tasks), [events, decisions, tasks]);
+  const sources = useMios((s) => s.calendarSources);
+  return useMemo(() => busyIntervals(events, decisions, tasks, sources), [events, decisions, tasks, sources]);
+};
+
+export interface CalendarLook {
+  name: string;
+  color: string;
+  /** MiOS's own calendar, here or kept in Google. */
+  mios?: boolean;
+}
+
+/** MiOS's own calendar: your tasks, deadlines and repeats, and tasks made from calendar items. */
+export const MIOS_LOOK: CalendarLook = { name: "MiOS", color: "var(--accent)", mios: true };
+
+/** E: each outside calendar's name and colour, by id. */
+export const useCalendarLooks = (): Map<string, CalendarLook> => {
+  const sources = useMios((s) => s.calendarSources);
+  return useMemo(
+    () =>
+      new Map(
+        fillCalendarColors(sources).map((c) => [
+          c.id,
+          c.mios ? { ...MIOS_LOOK, name: c.name } : { name: c.name, color: c.color ?? MIOS_LOOK.color },
+        ]),
+      ),
+    [sources],
+  );
 };
 
 /** E: today's calendar items still waiting for the morning check-in. */

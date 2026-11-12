@@ -100,6 +100,14 @@
   color: var(--text-tertiary);
 }
 
+.calName {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 .choices {
   display: flex;
   flex-wrap: wrap;
@@ -266,6 +274,49 @@
   flex-wrap: wrap;
 }
 
+.sourceName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.swatch {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--cal, var(--accent));
+}
+
+button.swatch {
+  cursor: pointer;
+}
+
+button.swatch:hover {
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--separator);
+}
+
+.swatch[aria-checked="true"],
+.swatch[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--cal, var(--accent));
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex-basis: 100%;
+  padding: var(--space-2) 0 var(--space-1) 24px;
+}
+
+.palette .swatch {
+  width: 22px;
+  height: 22px;
+}
+
 .sourceMeta {
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -358,30 +409,34 @@
   margin-bottom: var(--space-2);
 }
 
-/* Kind colors: dots and week items */
+/* Dots: the colour is the calendar (--cal), the shape is the kind */
 .dot {
   display: inline-block;
   flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--c, var(--gray));
+  background: var(--cal, var(--gray));
 }
 
-.k_task {
-  --c: var(--accent);
+.k_due .dot,
+.dot.k_due {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--cal, var(--gray));
 }
-.k_due {
-  --c: var(--orange);
+
+.k_repeat .dot,
+.dot.k_repeat {
+  opacity: 0.45;
 }
-.k_busy {
-  --c: var(--gray);
-}
-.k_pending {
-  --c: var(--red);
-}
-.k_repeat {
-  --c: var(--purple);
+
+/* The calendar's colour beside each agenda item */
+.calBar {
+  flex: none;
+  align-self: stretch;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--cal, var(--accent));
 }
 
 .weekList {

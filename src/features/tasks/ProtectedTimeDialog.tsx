@@ -35,7 +35,7 @@ export function ProtectedTimeDialog({
       {first && (
         <p>
           This slot overlaps <strong>{first.label}</strong> ({formatTime(first.start.toISOString())}–
-          {formatTime(first.end.toISOString())}){busy ? ", which is on your calendar" : ""}. The referee keeps this time
+          {formatTime(first.end.toISOString())}){busy ? `, which is on your calendar${first.calendar ? ` (${first.calendar})` : ""}` : ""}. The referee keeps this time
           free unless you approve it.
         </p>
       )}

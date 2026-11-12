@@ -3,6 +3,7 @@ import {
   CALENDAR_WINDOW,
   MINUTE_MS,
   miosUid,
+  normalizeColor,
   taskIdFromUid,
   type CalendarEvent,
   type Settings,
@@ -20,6 +21,8 @@ import {
 
 export interface ParsedCalendar {
   name?: string;
+  /** The calendar's own colour, if the file carries one (#rrggbb). */
+  color?: string;
   events: CalendarEvent[];
 }
 
@@ -107,7 +110,9 @@ export const parseIcs = (text: string, sourceId: string, now: number): ParsedCal
   }
 
   const name = root.getFirstPropertyValue("x-wr-calname");
-  return { ...(name ? { name: String(name) } : {}), events };
+  // Apple writes X-APPLE-CALENDAR-COLOR; RFC 7986 has COLOR (only hex values are used).
+  const color = normalizeColor(root.getFirstPropertyValue("x-apple-calendar-color")) ?? normalizeColor(root.getFirstPropertyValue("color"));
+  return { ...(name ? { name: String(name) } : {}), ...(color ? { color } : {}), events };
 };
 
 // ---------------------------------------------------------------------------

@@ -98,6 +98,7 @@ const applyMiosChanges = (result: ListResult & { full: boolean }): number => {
   store().applyGoogleItems({
     sourceId: GOOGLE_SOURCE.mios,
     name: "MiOS calendar (Google)",
+    mios: true,
     items: pull.others.map((g) => fromGoogle(g, GOOGLE_SOURCE.mios)).filter((e): e is CalendarEvent => !!e),
     removedIds: result.items.filter((g) => g.status === "cancelled").map((g) => g.id),
     full: result.full,

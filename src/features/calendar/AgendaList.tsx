@@ -1,9 +1,11 @@
 "use client";
 
 import { getMode, isNow, type AgendaItem, type ModeId } from "@/core";
+import { useCalendarLooks } from "@/state/hooks";
 import { formatTime } from "@/ui/format";
 import { Pill } from "@/ui/primitives";
 import s from "./calendar.module.css";
+import { calStyle, lookOf } from "./colors";
 
 const tagFor = (item: AgendaItem): { label: string; tone: "neutral" | "tag" | "warn" } => {
   switch (item.kind) {
@@ -51,6 +53,7 @@ export function DayList({
   mode?: ModeId;
   compact?: boolean;
 }) {
+  const looks = useCalendarLooks();
   if (!items.length) return <p className={s.empty}>Nothing planned.</p>;
   const nowIndex = isToday ? items.findIndex((it) => !it.allDay && it.start > now) : -1;
   return (
@@ -58,12 +61,20 @@ export function DayList({
       {items.map((it, i) => {
         const tag = tagFor(it);
         const faded = it.kind === "repeat" || (mode && mode !== "general" && it.mode && it.mode !== mode);
+        const look = lookOf(it.sourceId, looks);
         return (
           <li key={it.id} className={s.itemWrap}>
             {i === nowIndex && <div className={s.nowLine} aria-label="Now" />}
-            <div className={`${s.item} ${faded ? s.faded : ""} ${isToday && isNow(it, now) ? s.happening : ""}`}>
+            <div
+              className={`${s.item} ${faded ? s.faded : ""} ${isToday && isNow(it, now) ? s.happening : ""}`}
+              style={calStyle(look.color)}
+            >
+              <span className={s.calBar} title={`${look.name} calendar`} aria-hidden />
               <span className={s.time}>{timeLabel(it)}</span>
-              <span className={s.title}>{it.title}</span>
+              <span className={s.title}>
+                {it.title}
+                <span className="visually-hidden"> ({look.name} calendar)</span>
+              </span>
               <Pill tone={tag.tone}>{tag.label}</Pill>
             </div>
           </li>
