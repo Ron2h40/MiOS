@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import type { ProtectedBlock } from "@/core";
 import { aiAccessNotice } from "@/ai/access";
+import { AccountCard } from "@/features/account/DeleteAccount";
 import { AiDisclosureText } from "@/features/ai/AiDisclosure";
 import { useAccount } from "@/state/account";
 import { useAi } from "@/state/ai";
@@ -147,6 +148,8 @@ export function SettingsScreen() {
           <p>{aiAccessNotice(synced)}</p>
         </div>
       </Card>
+
+      <AccountCard />
 
       <Card
         title="Your data"

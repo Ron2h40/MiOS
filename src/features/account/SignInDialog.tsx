@@ -13,6 +13,7 @@ import {
 } from "@/integrations/firebase/auth";
 import { accountRefreshed, useAccount } from "@/state/account";
 import { Button, Dialog } from "@/ui/primitives";
+import { PasswordField } from "./PasswordField";
 import s from "./account.module.css";
 
 type Mode = "signin" | "signup" | "reset";
@@ -33,6 +34,7 @@ export function SignInDialog({ onClose, start = "signin" }: { onClose: () => voi
   const [mode, setMode] = useState<Mode>(start);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -66,6 +68,7 @@ export function SignInDialog({ onClose, start = "signin" }: { onClose: () => voi
         setNotice(`If ${email.trim()} has an account, a reset link is on its way. Check your inbox.`);
       });
     } else if (mode === "signup") {
+      if (password !== confirm) return; // the message is already under the box
       void run(() => signUpWithEmail(email, password));
     } else {
       void run(() => signInWithEmail(email, password));
@@ -74,9 +77,13 @@ export function SignInDialog({ onClose, start = "signin" }: { onClose: () => voi
 
   const go = (m: Mode) => {
     setMode(m);
+    setConfirm("");
     setError("");
     setNotice("");
   };
+
+  // Shown once the second box is filled in, so it doesn't nag while typing the first.
+  const mismatch = mode === "signup" && confirm.length > 0 && confirm !== password;
 
   return (
     <Dialog
@@ -115,18 +122,26 @@ export function SignInDialog({ onClose, start = "signin" }: { onClose: () => voi
           <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         {mode !== "reset" && (
-          <label>
-            Password
-            <input
-              type="password"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              required
-              minLength={mode === "signup" ? 6 : undefined}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
+          <PasswordField
+            label="Password"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            required
+            minLength={mode === "signup" ? 6 : undefined}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         )}
+        {mode === "signup" && (
+          <PasswordField
+            label="Confirm password"
+            autoComplete="new-password"
+            required
+            value={confirm}
+            invalid={mismatch}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        )}
+        {mismatch && <p className={s.error}>The passwords don&apos;t match.</p>}
         {error && (
           <p className={s.error} role="alert">
             {error}

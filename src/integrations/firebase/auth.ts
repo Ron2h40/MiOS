@@ -3,8 +3,12 @@
 import { FirebaseError } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
   GoogleAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
   reload,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -69,6 +73,24 @@ export const resetPassword = async (email: string): Promise<void> => {
   await sendPasswordResetEmail(firebaseAuth(), email.trim());
 };
 
+/**
+ * Deleting an account needs a fresh sign-in: Google asks again, or the
+ * password is typed again.
+ */
+export const confirmItsYou = async (password?: string): Promise<void> => {
+  const u = firebaseAuth().currentUser;
+  if (!u) throw new Error("Not signed in");
+  const google = u.providerData.some((p) => p.providerId === "google.com");
+  if (google) await reauthenticateWithPopup(u, new GoogleAuthProvider());
+  else await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email ?? "", password ?? ""));
+};
+
+/** Remove the sign-in itself. Call after confirmItsYou and after the data is deleted. */
+export const deleteSignIn = async (): Promise<void> => {
+  const u = firebaseAuth().currentUser;
+  if (u) await deleteUser(u);
+};
+
 export const signOutAccount = async (): Promise<void> => {
   await signOut(firebaseAuth());
 };
@@ -92,6 +114,8 @@ const MESSAGES: Record<string, string> = {
   "auth/cancelled-popup-request": "The Google window was closed before signing in.",
   "auth/operation-not-allowed": "This way of signing in isn't turned on for MiOS yet.",
   "auth/unauthorized-domain": "Signing in isn't allowed from this address yet.",
+  "auth/requires-recent-login": "For safety, sign in again first, then try once more.",
+  "auth/user-mismatch": "That's a different Google account. Choose the one you're signed in with.",
 };
 
 export const authMessage = (e: unknown): string =>

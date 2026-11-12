@@ -23,7 +23,8 @@ export default function PrivacyPage() {
             you can read it: the database refuses everyone else, and sync starts once your email is confirmed. Firebase
             stores your email address and, for Google sign-in, your name. Signing out removes your data from this
             browser; it stays in your account. Erasing everything in Settings while signed in erases it from your
-            account too. As a guest, nothing is stored outside this browser.
+            account too. Delete my account (in Settings) deletes the account and everything synced to it, for good. As
+            a guest, nothing is stored outside this browser.
           </p>
           <p>
             <strong>AI allowance.</strong> Signed-in accounts get real AI, up to 100 requests a day. For now guests get

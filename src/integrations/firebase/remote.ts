@@ -47,6 +47,15 @@ export const writeAll = async (uid: string, name: string, changes: ReadonlyMap<s
   }
 };
 
+/** Delete every item in the given collections (used when an account is deleted). */
+export const deleteAll = async (uid: string, names: readonly string[]): Promise<void> => {
+  for (const name of names) {
+    const snap = await getDocsFromServer(col(uid, name));
+    const ids = snap.docs.map((d) => idOfDoc(d.id));
+    if (ids.length) await writeAll(uid, name, new Map(ids.map((id) => [id, null])));
+  }
+};
+
 export interface RemoteChange {
   id: string;
   /** New JSON, or null when the item was deleted. */

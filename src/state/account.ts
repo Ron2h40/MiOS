@@ -1,13 +1,13 @@
 "use client";
 
 import { create } from "zustand";
-import { watchAccount, type Account } from "@/integrations/firebase/auth";
+import { confirmItsYou, deleteSignIn, watchAccount, type Account } from "@/integrations/firebase/auth";
 import { firebaseConfigured } from "@/integrations/firebase/client";
 import { hashOf, reconcile, type Base } from "@/integrations/firebase/reconcile";
-import { listen, readAll, writeAll, type RemoteChange } from "@/integrations/firebase/remote";
+import { deleteAll, listen, readAll, writeAll, type RemoteChange } from "@/integrations/firebase/remote";
 import { useAi } from "./ai";
 import { useMios, type MiosData } from "./store";
-import { AI_COLLECTIONS, MIOS_COLLECTIONS, type AiData, type Collection } from "./syncCollections";
+import { AI_COLLECTIONS, MIOS_COLLECTIONS, SYNCED_COLLECTIONS, type AiData, type Collection } from "./syncCollections";
 
 /**
  * Accounts and sync. Guests keep everything in this browser, as before.
@@ -290,6 +290,23 @@ export const forgetLocalData = () => {
   useMios.getState().reset();
   useAi.getState().reset();
   set({ phase: "off", message: undefined, choice: undefined, lastSyncedAt: undefined });
+};
+
+/**
+ * Delete the account for good: confirm it's really them, stop syncing,
+ * delete everything synced, delete the sign-in, then clear this browser.
+ * Throws (with nothing deleted) if the confirmation fails.
+ */
+export const deleteAccount = async (password?: string): Promise<void> => {
+  const account = useAccount.getState().account;
+  if (!account) return;
+  await confirmItsYou(password);
+  stop();
+  set({ phase: "starting", message: undefined });
+  // Unverified email accounts never synced (the rules don't allow it), so there's nothing stored.
+  if (account.verified) await deleteAll(account.uid, SYNCED_COLLECTIONS);
+  await deleteSignIn();
+  forgetLocalData();
 };
 
 const syncMessage = (e: unknown): string => {

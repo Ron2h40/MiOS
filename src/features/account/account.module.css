@@ -159,3 +159,52 @@
 .menu .fine {
   margin-top: 0;
 }
+
+/* Password with a show/hide eye */
+.password {
+  position: relative;
+  display: block;
+}
+
+.password input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.eye {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.eye:hover,
+.eye[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--fill);
+}
+
+.form input[aria-invalid="true"] {
+  box-shadow: 0 0 0 2px var(--red);
+}
+
+.form .check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 400;
+}
+
+.check input {
+  width: auto;
+  margin: 0;
+}
