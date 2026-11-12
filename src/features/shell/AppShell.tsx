@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ALL_MODES } from "@/core";
 import { AiRuntime } from "@/features/ai/AiRuntime";
 import { Onboarding } from "@/features/ai/AiDisclosure";
+import { ReviewRuntime } from "@/features/assist/ReviewRuntime";
 import { CalendarRuntime, CheckInBanner } from "@/features/calendar/CheckIn";
 import { GoogleRuntime } from "@/features/calendar/GoogleSync";
 import { RewardBanner, StreakBadge } from "@/features/rewards/Rewards";
@@ -81,6 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AiRuntime />
           <CalendarRuntime />
           <GoogleRuntime />
+          <ReviewRuntime />
           <Onboarding />
         </>
       )}

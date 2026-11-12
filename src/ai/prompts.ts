@@ -73,6 +73,40 @@ const builders: { [K in AiKind]: Builder<K> } = {
     user: `Review the user's recent activity in MiOS. Write a short summary and up to 5 notes about their habits (for example: tends to underestimate chores, often reorders after interrupts). Notes help MiOS give better help later. Be specific and neutral. Build on the previous summary.\nWhat just happened: ${json(p.triggers)}\nRecent activity: ${json(p.recentEvents)}\nOpen tasks: ${json(p.tasks)}\nPrevious summary: ${p.previousSummary || "none"}`,
     schema: S.obj({ summary: S.str, notes: S.arr(S.str) }),
   }),
+  research: (p, call) => ({
+    user: [
+      `The user is working on the task "${p.task.title}" and wants to research: ${json(p.question)}`,
+      "Search the web for good, reliable sources on it.",
+      call.context.stage === "teen"
+        ? "Do not answer the question or summarize the sources: the user will read them and write the summary. In 2 to 4 short lines, say what to look for in the sources and how to judge them."
+        : "Write a short summary of what the sources say, in 3 to 6 plain sentences. Say where sources disagree.",
+      "Plain text only: no headings, no bullet symbols, no links.",
+      'End with one last line that starts with "Why:" and says how you chose these sources.',
+    ].join("\n"),
+    schema: {},
+  }),
+  breakdown: (p) => ({
+    user: `Split this task into 3 to 8 concrete steps, in the order to do them. Each step is a short action that starts with a verb and takes under an hour. Steps are a suggestion the user will edit.\nTask: ${json(p.task)}`,
+    schema: S.obj({ steps: S.arr(S.str), why: S.str }),
+  }),
+  checkSteps: (p) => ({
+    user: [
+      "The user split this task into steps on their own. Check their plan, but do not rewrite it and do not give your own list of steps.",
+      "Give up to 4 short notes: a missing step, a step that is too big or vague, or steps in a risky order. Refer to a step by its number (1 is the first), or 0 for the plan as a whole.",
+      "If the plan looks fine, give one note with step 0 that says so.",
+      `Task: ${json(p.task)}`,
+      `Their steps: ${json(p.steps.map((st, i) => `${i + 1}. ${st}`))}`,
+    ].join("\n"),
+    schema: S.obj({ notes: S.arr(S.obj({ step: S.num, note: S.str })), why: S.str }),
+  }),
+  review: (p) => ({
+    user: [
+      "The user just finished a big task. Ask 2 or 3 short reflection questions that help them plan the next one better.",
+      "No judgment, no praise, no advice: only questions, each one sentence. Base them on what the data shows (time guess against actual time, the deadline, the steps).",
+      `Task: ${json(p.task)}`,
+    ].join("\n"),
+    schema: S.obj({ questions: S.arr(S.str), why: S.str }),
+  }),
   popup: (p) => {
     const f = AI_FEATURES[p.feature];
     return {
@@ -103,6 +137,32 @@ const builders: { [K in AiKind]: Builder<K> } = {
       }),
     };
   },
+};
+
+/**
+ * B5 fallback: the model works only from Wikipedia extracts MiOS fetched
+ * itself, so every claim can be traced to a listed article.
+ */
+export const buildArticlePrompt = (
+  call: AiCall<"research">,
+  articles: readonly { title: string; extract: string }[],
+): BuiltPrompt => {
+  const teen = call.context.stage === "teen";
+  return {
+    system: `${BASE_RULES}\n${stageRule(call.context.stage)}`,
+    user: [
+      contextBlock(call),
+      "",
+      `The user is working on the task "${call.payload.task.title}" and wants to research: ${json(call.payload.question)}`,
+      "Use only the Wikipedia article extracts below. Do not add facts from elsewhere. If they don't cover the question, say so.",
+      teen
+        ? "Do not answer the question or summarize the articles: the user will read them and write the summary. In `text`, say in 2 to 4 short sentences what to look for in them and how to judge them."
+        : "In `text`, sum up what the articles say about the question in 3 to 6 plain sentences.",
+      "In `why`, say in one sentence how these articles relate to the question.",
+      `Articles: ${json(articles)}`,
+    ].join("\n"),
+    schema: S.obj({ text: S.str, why: S.str }),
+  };
 };
 
 export const buildPrompt = <K extends AiKind>(call: AiCall<K>): BuiltPrompt => {

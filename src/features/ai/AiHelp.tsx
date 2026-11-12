@@ -72,6 +72,7 @@ const ERROR_TEXT: Record<AiErrorCode, string> = {
   unavailable: "AI isn't reachable right now. Everything else still works.",
   bad_response: "The AI answer didn't make sense. Try again.",
   bad_request: "That request couldn't be sent.",
+  no_sources: "Google Search found no sources for that. Try asking more specifically.",
 };
 
 export type AiStatus<T> =

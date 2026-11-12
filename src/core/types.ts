@@ -62,6 +62,49 @@ export interface Task {
   repeat?: { seriesId: string; day: string };
   /** One day of a repeating series that the user changed by hand; it is never replaced by the next one. */
   oneOff?: boolean;
+  /** B6: a big task split into steps, ticked off inside the task. */
+  steps?: TaskStep[];
+  /** B5: research saved with the task, newest first. */
+  research?: TaskResearch[];
+  /** B7: the review after finishing a big task (answered or skipped). */
+  review?: TaskReview;
+}
+
+export interface TaskStep {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
+export interface ResearchSource {
+  title: string;
+  url: string;
+}
+
+export interface TaskResearch {
+  id: string;
+  at: ISODateTime;
+  question: string;
+  sources: ResearchSource[];
+  /** Child stage: the AI's summary of the sources. */
+  summary?: string;
+  /** Teen stage: what the AI said to look for (never an answer). */
+  guide?: string;
+  /** The user's own summary, in their words. */
+  mine?: string;
+  /** How the sources were chosen, for "Why?". */
+  why?: string;
+  /** Where the sources came from: Google Search, or Wikipedia when Google Search isn't available. */
+  provider?: "google" | "wikipedia";
+}
+
+export interface TaskReview {
+  at: ISODateTime;
+  /** Questions and the user's answers; empty answers mean the question was left blank. */
+  answers: { question: string; answer: string }[];
+  /** The questions came from AI (child and teen) rather than MiOS's fixed list. */
+  ai: boolean;
+  skipped?: boolean;
 }
 
 /** A6: recurring protected time, e.g. sleep or gym. Times are local "HH:MM". */

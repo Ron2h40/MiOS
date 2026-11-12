@@ -1,0 +1,259 @@
+/* B5–B7: steps, research and review */
+
+.lead {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+
+.note {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Checklist */
+.steps {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: 4px;
+}
+
+.stepsHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.bar {
+  flex: 0 0 80px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--green, var(--accent));
+}
+
+.stepList {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepList label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.stepList input {
+  flex: none;
+  margin: 0;
+  transform: translateY(2px);
+}
+
+.stepDone span {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.compact .stepList label {
+  font-size: var(--text-xs);
+}
+
+/* Steps dialog */
+.draft {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.draft li > * {
+  vertical-align: middle;
+}
+
+.draft li {
+  padding-left: 2px;
+}
+
+.draft input {
+  width: calc(100% - 44px);
+  margin-right: 4px;
+}
+
+.aiList {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 1.4em;
+  font-size: var(--text-sm);
+}
+
+/* Research */
+.ask {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ask input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ask + .note {
+  margin-top: 6px;
+}
+
+.searchWidget {
+  width: 100%;
+  height: 64px;
+  margin-top: var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.researchList {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.researchItem {
+  padding: var(--space-3);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius);
+}
+
+.fresh {
+  border-color: var(--accent);
+}
+
+.researchHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.summary,
+.guide {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  white-space: pre-line;
+}
+
+.sources {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-2) 0 0;
+  padding-left: 1.4em;
+  font-size: var(--text-sm);
+}
+
+.sources a {
+  overflow-wrap: anywhere;
+}
+
+.mine {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+.mine textarea {
+  width: 100%;
+}
+
+/* Review */
+.review {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.review label {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.review textarea {
+  width: 100%;
+  font-weight: 400;
+}
+
+/* Small link-like toggles in a task row's meta line */
+.metaButton {
+  border: none;
+  background: var(--fill);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.metaButton:hover {
+  color: var(--text);
+}
+
+.answers {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.answers summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.answers dl {
+  display: grid;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+}
+
+.answers dt {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.answers dd {
+  margin: 0;
+  white-space: pre-line;
+}

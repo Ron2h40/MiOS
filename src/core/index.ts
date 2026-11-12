@@ -20,3 +20,4 @@ export * from "./calendar";
 export * from "./repeats";
 export * from "./agenda";
 export * from "./history";
+export * from "./assist";

@@ -55,6 +55,10 @@ import {
   type Stage,
   type Task,
   type TaskModeId,
+  type TaskResearch,
+  type TaskReview,
+  cleanSteps,
+  reviewAnswered,
 } from "@/core";
 
 /**
@@ -182,6 +186,17 @@ interface Actions {
   /** Teen pop-up answered or skipped. Product metric only; never a gate signal. */
   logPopup(feature: string, outcome: "answered" | "skipped"): void;
 
+  /** B6: replace a task's steps. Steps with the same title keep their tick. `own` = the user wrote them. */
+  setSteps(taskId: string, titles: string[], own: boolean): void;
+  toggleStep(taskId: string, stepId: string): void;
+  /** B5: keep a research result with the task (newest first, up to 10). */
+  addResearch(taskId: string, entry: Omit<TaskResearch, "id" | "at">): TaskResearch | null;
+  /** B5: the user's own summary of a research result. */
+  setResearchSummary(taskId: string, researchId: string, mine: string): void;
+  removeResearch(taskId: string, researchId: string): void;
+  /** B7: answers to the review after a big task, or a skip. */
+  saveReview(taskId: string, review: Omit<TaskReview, "at">): void;
+
   setStage(stage: Stage, reason?: "auto" | "manual"): void;
   /** Move the user up a stage if every gate signal passes. Returns the new stage if it changed. */
   checkStageUp(): Stage | null;
@@ -241,6 +256,9 @@ export type MiosStore = Data & Actions;
 
 const now = (): ISODateTime => new Date().toISOString();
 const uid = (): string => crypto.randomUUID();
+
+/** Working on one day of a repeat (steps, research) makes it that day's own, so the next day won't replace it. */
+const worked = (t: Task): Partial<Task> => (seriesKeyOf(t) ? { oneOff: true } : {});
 
 const initialData = (): Data => ({
   tasks: [],
@@ -571,6 +589,59 @@ export const useMios = create<MiosStore>()(
 
         logPopup(feature, outcome) {
           pushEvents({ type: "popup_question", feature, outcome });
+        },
+
+        setSteps(taskId, titles, own) {
+          const task = get().tasks.find((t) => t.id === taskId);
+          if (!task) return;
+          const clean = cleanSteps(titles);
+          const before = new Map((task.steps ?? []).map((st) => [st.title.toLowerCase(), st]));
+          const steps = clean.map((title) => {
+            const old = before.get(title.toLowerCase());
+            return { id: old?.id ?? uid(), title, done: old?.done ?? false };
+          });
+          replaceTask(taskId, (t) => ({ ...t, steps: steps.length ? steps : undefined, ...worked(t), updatedAt: now() }));
+          if (own && steps.length) pushEvents({ type: "own_work", taskId, kind: "steps" });
+        },
+
+        toggleStep(taskId, stepId) {
+          replaceTask(taskId, (t) => ({
+            ...t,
+            steps: t.steps?.map((st) => (st.id === stepId ? { ...st, done: !st.done } : st)),
+            ...worked(t),
+            updatedAt: now(),
+          }));
+        },
+
+        addResearch(taskId, entry) {
+          if (!get().tasks.some((t) => t.id === taskId)) return null;
+          const item: TaskResearch = { id: uid(), at: now(), ...entry };
+          replaceTask(taskId, (t) => ({ ...t, research: [item, ...(t.research ?? [])].slice(0, 10), ...worked(t), updatedAt: now() }));
+          return item;
+        },
+
+        setResearchSummary(taskId, researchId, mine) {
+          const text = mine.trim().slice(0, 4000);
+          replaceTask(taskId, (t) => ({
+            ...t,
+            research: t.research?.map((r) => (r.id === researchId ? { ...r, mine: text || undefined } : r)),
+            updatedAt: now(),
+          }));
+          if (text) pushEvents({ type: "own_work", taskId, kind: "summary" });
+        },
+
+        removeResearch(taskId, researchId) {
+          replaceTask(taskId, (t) => {
+            const research = t.research?.filter((r) => r.id !== researchId);
+            return { ...t, research: research?.length ? research : undefined, updatedAt: now() };
+          });
+        },
+
+        saveReview(taskId, review) {
+          const answers = review.answers.map((a) => ({ question: a.question, answer: a.answer.trim().slice(0, 2000) }));
+          const saved: TaskReview = { ...review, answers, at: now() };
+          replaceTask(taskId, (t) => ({ ...t, review: saved }));
+          if (reviewAnswered(saved)) pushEvents({ type: "own_work", taskId, kind: "review" });
         },
 
         setStage(stage, reason = "manual") {

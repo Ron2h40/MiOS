@@ -35,6 +35,63 @@ const request = async (body: unknown): Promise<Response> => {
   });
 };
 
+export interface GroundedAnswer {
+  text: string;
+  sources: { title: string; url: string }[];
+  /** Google's search suggestions (HTML). Google requires showing them with grounded answers. */
+  searchWidget?: string;
+}
+
+/** Grounding links go through a Google redirect that doesn't last; keep the page they point to. */
+const resolveSource = async (url: string): Promise<string> => {
+  if (!/^https:\/\/vertexaisearch\.cloud\.google\.com\//.test(url)) return url;
+  try {
+    const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(4000), cache: "no-store" });
+    const to = res.headers.get("location");
+    return to && /^https?:\/\//i.test(to) ? to : url;
+  } catch {
+    return url;
+  }
+};
+
+/**
+ * B5: answer with Google Search grounding. The sources are the search
+ * results Google reports, never links the model writes. Plain text out:
+ * not every model accepts a JSON schema together with search.
+ */
+export const generateGrounded = async (system: string, user: string): Promise<GroundedAnswer> => {
+  let res: Response;
+  try {
+    res = await request({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: user }] }],
+      tools: [{ google_search: {} }],
+    });
+  } catch {
+    throw new GeminiError("unavailable", "Couldn't reach the AI service.");
+  }
+  if (res.status === 429) throw new GeminiError("rate_limited", "The free search limit is used up for now.");
+  if (!res.ok) throw new GeminiError("unavailable", `The AI service answered ${res.status}.`);
+
+  const data = (await res.json().catch(() => null)) as {
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+      groundingMetadata?: {
+        groundingChunks?: { web?: { uri?: string; title?: string } }[];
+        searchEntryPoint?: { renderedContent?: string };
+      };
+    }[];
+  } | null;
+  const c = data?.candidates?.[0];
+  const text = c?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  const chunks = (c?.groundingMetadata?.groundingChunks ?? []).flatMap((g) =>
+    g.web?.uri ? [{ title: g.web.title ?? "", url: g.web.uri }] : [],
+  );
+  const sources = await Promise.all(chunks.slice(0, 8).map(async (src) => ({ ...src, url: await resolveSource(src.url) })));
+  const widget = c?.groundingMetadata?.searchEntryPoint?.renderedContent;
+  return { text, sources, ...(widget ? { searchWidget: widget } : {}) };
+};
+
 /** Ask the model for JSON. Returns the parsed object (still unvalidated). */
 export const generateJson = async (system: string, user: string, schema: Record<string, unknown>): Promise<unknown> => {
   const base = {

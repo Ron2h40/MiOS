@@ -63,3 +63,8 @@
   color: var(--text-tertiary);
   font-size: var(--text-xs);
 }
+
+.steps {
+  width: min(420px, 100%);
+  text-align: left;
+}

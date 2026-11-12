@@ -1,8 +1,9 @@
-import { buildPrompt } from "@/ai/prompts";
+import { buildArticlePrompt, buildPrompt } from "@/ai/prompts";
 import { mockResult } from "@/ai/mock";
-import { GeminiError, generateJson, geminiConfigured } from "@/ai/server/gemini";
+import { GeminiError, generateGrounded, generateJson, geminiConfigured } from "@/ai/server/gemini";
+import { searchWikipedia } from "@/ai/server/wikipedia";
 import { AI_KINDS, type AiCall, type AiKind, type AiResponse } from "@/ai/types";
-import { parseResult } from "@/ai/validate";
+import { parseArticleAnswer, parseResearch, parseResult } from "@/ai/validate";
 
 /**
  * POST /api/ai: the single server entry point for every AI feature.
@@ -29,10 +30,32 @@ const isCall = (v: unknown): v is AiCall => {
   );
 };
 
-/** Ids the answer may refer to, so the validator can drop invented ones. */
+/** Ids the answer may refer to, so the validator can drop invented ones. For step checks: one per step. */
 const taskIdsOf = (call: AiCall): string[] => {
-  const p = call.payload as { tasks?: { id: string }[] };
+  const p = call.payload as { tasks?: { id: string }[]; steps?: unknown[] };
+  if (call.kind === "checkSteps") return Array.isArray(p.steps) ? p.steps.map((_, i) => String(i + 1)) : [];
   return Array.isArray(p.tasks) ? p.tasks.map((t) => String(t.id)) : [];
+};
+
+/**
+ * B5: Google Search first. Free API keys often have no search allowance, and
+ * Google then refuses (429 or 400); Wikipedia's free search takes over, and
+ * the model works only from the articles it returns.
+ */
+const research = async (call: AiCall<"research">, system: string, user: string): Promise<AiResponse<"research">> => {
+  try {
+    const answer = await generateGrounded(system, user);
+    const result = parseResearch(answer.text, answer.sources, call.context.stage, answer.searchWidget);
+    if (result) return { ok: true, result, mock: false };
+  } catch (e) {
+    if (!(e instanceof GeminiError) || e.code === "bad_response") throw e;
+  }
+  const articles = await searchWikipedia(call.payload.question).catch(() => []);
+  if (!articles.length) return { ok: false, error: "no_sources", message: "No sources came back for that question." };
+  const prompt = buildArticlePrompt(call, articles);
+  const raw = await generateJson(prompt.system, prompt.user, prompt.schema);
+  const result = parseArticleAnswer(raw, articles.map(({ title, url }) => ({ title, url })), call.context.stage);
+  return result ? { ok: true, result, mock: false } : { ok: false, error: "bad_response", message: "The AI answer didn't make sense. Try again." };
 };
 
 export async function POST(request: Request) {
@@ -56,6 +79,7 @@ export async function POST(request: Request) {
 
   try {
     const { system, user, schema } = buildPrompt(call);
+    if (call.kind === "research") return reply(await research(call as AiCall<"research">, system, user));
     const rawResult = await generateJson(system, user, schema);
     const result = parseResult(call.kind, rawResult, taskIdsOf(call));
     if (!result) return fail("bad_response", "The AI answer didn't make sense. Try again.", 502);

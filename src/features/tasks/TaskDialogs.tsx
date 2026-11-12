@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { describePattern, taskProtectedConflicts, wouldDeadlock, type Task } from "@/core";
-import { useBusy } from "@/state/hooks";
+import { useBusy, useStage } from "@/state/hooks";
 import { useMios, type NewBlocker } from "@/state/store";
 import { Button, Dialog } from "@/ui/primitives";
 import { EstimateAssist } from "@/features/ai/EstimateAssist";
@@ -152,7 +152,19 @@ export function BlockerDialog({ task, onClose }: { task: Task | null; onClose: (
   );
 }
 
-export function EditDialog({ task, onClose }: { task: Task | null; onClose: () => void }) {
+export function EditDialog({
+  task,
+  onClose,
+  onSteps,
+  onResearch,
+}: {
+  task: Task | null;
+  onClose: () => void;
+  /** B6 and B5, reachable for any task from here. */
+  onSteps: (task: Task) => void;
+  onResearch: (task: Task) => void;
+}) {
+  const { policy } = useStage();
   const updateTask = useMios((st) => st.updateTask);
   const settings = useMios((st) => st.settings);
   const busy = useBusy();
@@ -228,6 +240,21 @@ export function EditDialog({ task, onClose }: { task: Task | null; onClose: () =
             <p className={`${s.callout} ${s.calloutWarn}`}>
               The planned start overlaps <strong>{conflicts[0].label}</strong>. Saving approves it.
             </p>
+          )}
+          {task && (
+            <div className={s.repeatLine}>
+              <span>Steps and research</span>
+              <span>
+                <Button size="sm" variant="plain" onClick={() => onSteps(task)}>
+                  {task.steps?.length ? "Edit steps" : "Break into steps"}
+                </Button>
+                {(policy.aiButton || !!task.research?.length) && (
+                  <Button size="sm" variant="plain" onClick={() => onResearch(task)}>
+                    Research
+                  </Button>
+                )}
+              </span>
+            </div>
           )}
         </div>
       )}

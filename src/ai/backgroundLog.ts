@@ -19,7 +19,8 @@ export const b8Active = (stage: Stage): boolean => stage !== "adult";
 /**
  * Cognitive actions: the five decisions (move, sort, priority, interrupt
  * choice, breaking a deadlock), finishing a task, a time guess, adding a
- * blocker, and answering a pop-up. Plus any use of AI.
+ * blocker, answering a pop-up, and the user's own work in B5–B7 (a summary,
+ * steps, review answers). Plus any use of AI.
  */
 export const isB8Trigger = (e: MiosEvent): boolean => {
   switch (e.type) {
@@ -32,10 +33,18 @@ export const isB8Trigger = (e: MiosEvent): boolean => {
       return true;
     case "popup_question":
       return e.outcome === "answered";
+    case "own_work":
+      return true;
     default:
       return false;
   }
 };
+
+const OWN_WORK = {
+  summary: "wrote their own research summary",
+  steps: "wrote their own steps",
+  review: "answered review questions",
+} as const;
 
 const FEATURE_WORDS: Record<string, string> = {
   order: "reordered the queue",
@@ -80,5 +89,7 @@ export const describeEvent = (e: MiosEvent, tasksById: ReadonlyMap<string, Task>
       return `${when} moved from ${e.from} to ${e.to} stage`;
     case "repeat_replaced":
       return `${when} left ${title(e.taskId)} unfinished until the next one replaced it`;
+    case "own_work":
+      return `${when} ${OWN_WORK[e.kind]} for ${title(e.taskId)} without AI writing it`;
   }
 };

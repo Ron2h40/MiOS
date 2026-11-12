@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { minutesBetween, readyQueue } from "@/core";
+import { StepsList } from "@/features/assist/StepsList";
 import { useHydrated, useNow } from "@/state/hooks";
 import { useMios } from "@/state/store";
 import { formatMinutes } from "@/ui/format";
@@ -65,6 +66,11 @@ export function FocusView() {
                 {over && " · past your guess"}
               </p>
             )}
+            {task.steps?.length ? (
+              <div className={s.steps}>
+                <StepsList task={task} />
+              </div>
+            ) : null}
             <div className={s.actions}>
               <Button onClick={() => act(task.id, "ready")}>Pause</Button>
               <Button variant="primary" onClick={() => act(task.id, "done")}>

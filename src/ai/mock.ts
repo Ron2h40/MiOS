@@ -3,6 +3,7 @@
  * tried and tested offline. Answers are built from the request with simple
  * rules; the UI labels them as demo answers.
  */
+import { fixedReviewQuestions } from "@/core";
 import type { AiCall, AiKind, AiResultMap, PopupFormat, PopupResult } from "./types";
 
 const byDeadline = (a?: string, b?: string) => (a ?? "9999").localeCompare(b ?? "9999");
@@ -135,6 +136,44 @@ export const mockResult = <K extends AiKind>(call: AiCall<K>): AiResultMap[K] =>
         return [{ format, ...q }];
       });
       return { questions } as AiResultMap[K];
+    }
+    case "research": {
+      // Demo mode has no search, so it links to real searches instead of inventing pages.
+      const p = (call as AiCall<"research">).payload;
+      const q = encodeURIComponent(p.question);
+      const sources = [
+        { title: `Wikipedia search: ${p.question}`, url: `https://en.wikipedia.org/w/index.php?search=${q}` },
+        { title: `Google Scholar search: ${p.question}`, url: `https://scholar.google.com/scholar?q=${q}` },
+      ];
+      return (
+        call.context.stage === "teen"
+          ? { guide: "Demo answer. Look for who wrote each page and when, and compare what two sources say.", sources, why: "Demo mode can't search, so these are searches to start from.", provider: "google" }
+          : { summary: "Demo answer. With an API key, a short summary of what the sources say appears here.", sources, why: "Demo mode can't search, so these are searches to start from.", provider: "google" }
+      ) as AiResultMap[K];
+    }
+    case "breakdown": {
+      const t = (call as AiCall<"breakdown">).payload.task.title;
+      return {
+        steps: [`Gather what you need for ${t}`, `Do the first half of ${t}`, `Do the rest of ${t}`, "Check it over and finish"],
+        why: "Demo answer: a generic split into start, middle and finish.",
+      } as AiResultMap[K];
+    }
+    case "checkSteps": {
+      const steps = (call as AiCall<"checkSteps">).payload.steps;
+      const longest = steps.reduce((best, st, i) => (st.length > steps[best].length ? i : best), 0);
+      return {
+        notes:
+          steps.length < 3
+            ? [{ step: 0, note: `Only ${steps.length} steps. Is anything missing between them?` }]
+            : [{ step: longest + 1, note: `Step ${longest + 1} is the longest. Could it be two steps?` }],
+        why: "Demo answer based on the number and length of your steps. Does it hold up?",
+      } as AiResultMap[K];
+    }
+    case "review": {
+      const t = (call as AiCall<"review">).payload.task;
+      const questions = fixedReviewQuestions(0).slice(0, 2);
+      if (t.estimateMinutes) questions.push(`You guessed ${t.estimateMinutes} minutes and it took ${t.actualMinutes}. What would you guess now?`);
+      return { questions, why: "Demo answer: MiOS's plain review questions, plus one about your time guess." } as AiResultMap[K];
     }
     default:
       throw new Error("Unknown AI kind");

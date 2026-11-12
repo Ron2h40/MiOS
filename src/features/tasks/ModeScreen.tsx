@@ -12,6 +12,8 @@ import { ResourceStrip } from "@/features/resources/ResourceStrip";
 import { MiniCalendar } from "@/features/calendar/MiniCalendar";
 import { DeadlockPanel, ModeLoadPanel, StarvationPanel } from "./Panels";
 import { TaskComposer } from "./TaskComposer";
+import { ResearchDialog } from "@/features/assist/ResearchDialog";
+import { StepsDialog } from "@/features/assist/StepsDialog";
 import { BlockerDialog, EditDialog, StartDialog } from "./TaskDialogs";
 import { TaskRow, type RowHandlers } from "./TaskRow";
 import s from "./tasks.module.css";
@@ -36,6 +38,8 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
   const [starting, setStarting] = useState<Task | null>(null);
   const [blocking, setBlocking] = useState<Task | null>(null);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [stepping, setStepping] = useState<Task | null>(null);
+  const [researching, setResearching] = useState<Task | null>(null);
   const [showDone, setShowDone] = useState(false);
 
   const start = (task: Task, estimate?: number) => {
@@ -51,6 +55,8 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
     onStart: (task) => (task.estimateMinutes && !policy.aiButton ? start(task) : setStarting(task)),
     onBlock: setBlocking,
     onEdit: setEditing,
+    onSteps: setStepping,
+    onResearch: setResearching,
   };
 
   const showMode = modeId === "general";
@@ -202,7 +208,21 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
 
       <StartDialog key={starting?.id} task={starting} onStart={(est) => starting && start(starting, est)} onClose={() => setStarting(null)} />
       <BlockerDialog key={blocking?.id ?? "none"} task={blocking} onClose={() => setBlocking(null)} />
-      <EditDialog key={editing?.id ?? "none-edit"} task={editing} onClose={() => setEditing(null)} />
+      <EditDialog
+        key={editing?.id ?? "none-edit"}
+        task={editing}
+        onClose={() => setEditing(null)}
+        onSteps={(t) => {
+          setEditing(null);
+          setStepping(t);
+        }}
+        onResearch={(t) => {
+          setEditing(null);
+          setResearching(t);
+        }}
+      />
+      {stepping && <StepsDialog key={stepping.id} task={stepping} onClose={() => setStepping(null)} />}
+      {researching && <ResearchDialog key={researching.id} task={researching} onClose={() => setResearching(null)} />}
     </div>
   );
 }

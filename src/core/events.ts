@@ -33,7 +33,9 @@ export type MiosEvent =
   | { type: "blocker_added"; at: ISODateTime; stage: Stage; taskId: string; kind: "task" | "person" | "event" }
   | { type: "ai_used"; at: ISODateTime; stage: Stage; feature: string }
   /** An unfinished, untouched day of a repeating task was replaced by the next one. */
-  | { type: "repeat_replaced"; at: ISODateTime; stage: Stage; taskId: string; byTaskId: string };
+  | { type: "repeat_replaced"; at: ISODateTime; stage: Stage; taskId: string; byTaskId: string }
+  /** B5–B7: the user did the thinking: wrote a summary, wrote steps, or answered a review. */
+  | { type: "own_work"; at: ISODateTime; stage: Stage; taskId: string; kind: "summary" | "steps" | "review" };
 
 export type MiosEventType = MiosEvent["type"];
 

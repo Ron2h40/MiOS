@@ -1,7 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getMode, keepReason, seriesKeyOf, type KeepReason, type Task } from "@/core";
+import { useState } from "react";
+import { getMode, isBigTask, keepReason, seriesKeyOf, stepsProgress, type KeepReason, type Task } from "@/core";
+import { StepsList } from "@/features/assist/StepsList";
+import assist from "@/features/assist/assist.module.css";
 import { useMios } from "@/state/store";
 import { formatMinutes, formatWhen } from "@/ui/format";
 import { Button, Pill, StatePill } from "@/ui/primitives";
@@ -12,6 +15,10 @@ export interface RowHandlers {
   onStart: (task: Task) => void;
   onBlock: (task: Task) => void;
   onEdit: (task: Task) => void;
+  /** B6: open the steps dialog. */
+  onSteps: (task: Task) => void;
+  /** B5: open the research dialog. */
+  onResearch: (task: Task) => void;
 }
 
 /** One task, with only the actions its process state allows. */
@@ -40,6 +47,9 @@ export function TaskRow({
   const removeBlocker = useMios((st) => st.removeBlocker);
   const toast = useToast((st) => st.show);
   const router = useRouter();
+  // Steps show open while the task is being worked on; elsewhere they fold away.
+  const [stepsOpen, setStepsOpen] = useState(task.state === "running");
+  const progress = stepsProgress(task);
 
   const move = (to: Parameters<typeof setTaskState>[1]) => {
     const r = setTaskState(task.id, to);
@@ -78,7 +88,28 @@ export function TaskRow({
           {seriesKeyOf(task) && task.state !== "done" && <RepeatTag task={task} now={now} />}
           {task.protectedOverride && <Pill tone="tag">In protected time</Pill>}
           {starvedDays !== undefined && <Pill tone="warn">Waiting {starvedDays} days</Pill>}
+          {progress.total > 0 && (
+            <button type="button" className={assist.metaButton} aria-expanded={stepsOpen} onClick={() => setStepsOpen((o) => !o)}>
+              Steps {progress.done}/{progress.total} {stepsOpen ? "▴" : "▾"}
+            </button>
+          )}
+          {task.research?.length ? (
+            <button type="button" className={assist.metaButton} onClick={() => handlers.onResearch(task)}>
+              Research {task.research.length}
+            </button>
+          ) : null}
         </div>
+
+        {stepsOpen && progress.total > 0 && (
+          <>
+            <StepsList task={task} />
+            {task.state !== "done" && (
+              <Button size="sm" variant="plain" onClick={() => handlers.onSteps(task)}>
+                Edit steps
+              </Button>
+            )}
+          </>
+        )}
 
         {task.blockedBy.length > 0 && task.state !== "done" && (
           <ul className={s.blockers}>
@@ -134,6 +165,12 @@ export function TaskRow({
         {(task.state === "ready" || task.state === "running") && (
           <Button size="sm" variant="success" onClick={() => move("done")}>
             Done
+          </Button>
+        )}
+        {/* B6: a big task without steps is offered a breakdown. */}
+        {task.state !== "done" && !progress.total && isBigTask(task) && (
+          <Button size="sm" onClick={() => handlers.onSteps(task)}>
+            Break down
           </Button>
         )}
         {task.state !== "done" && (

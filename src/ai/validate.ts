@@ -3,10 +3,15 @@
  * ids, or the wrong shape; nothing reaches the UI without passing through
  * here. Each parser returns null when the output can't be used at all.
  */
+import { cleanSteps, type ResearchSource, type Stage } from "@/core";
 import type {
   AiKind,
   AiResultMap,
   AnalyzeResult,
+  BreakdownResult,
+  CheckStepsResult,
+  ResearchResult,
+  ReviewResult,
   EstimateResult,
   InterruptResult,
   PopupFormat,
@@ -99,6 +104,90 @@ export const parsePopup = (raw: unknown): PopupResult | null => {
   return questions.length ? { questions } : null;
 };
 
+export const parseBreakdown = (raw: unknown): BreakdownResult | null => {
+  if (!isObj(raw)) return null;
+  const steps = cleanSteps(strList(raw.steps, 12, 200)).slice(0, 10);
+  if (steps.length < 2) return null;
+  return { steps, why: str(raw.why) || "Split into steps you can finish one at a time." };
+};
+
+export const parseCheckSteps = (raw: unknown, stepCount: number): CheckStepsResult | null => {
+  if (!isObj(raw)) return null;
+  const notes = (Array.isArray(raw.notes) ? raw.notes : [])
+    .filter(isObj)
+    .map((n) => {
+      const step = Math.round(Number(n.step));
+      return { step: Number.isFinite(step) && step >= 1 && step <= stepCount ? step : 0, note: str(n.note, 300) };
+    })
+    .filter((n) => n.note)
+    .slice(0, 4);
+  if (!notes.length) return null;
+  return { notes, why: str(raw.why) };
+};
+
+export const parseReview = (raw: unknown): ReviewResult | null => {
+  if (!isObj(raw)) return null;
+  const questions = [...new Set(strList(raw.questions, 5, 200))].slice(0, 3);
+  if (questions.length < 2) return null;
+  return { questions, why: str(raw.why) || "Questions about how this task went, to help plan the next one." };
+};
+
+/** Lines like "**Why:** ..." at the end carry the reasoning. */
+const WHY_LINE = /^\W*why\W*:\s*/i;
+
+/** Model text without markdown decoration: headings are dropped; bullets and bold are unwrapped. */
+const plain = (text: string): string =>
+  text
+    .split(/\r?\n/)
+    .filter((l) => !/^\s*#/.test(l))
+    .map((l) => l.replace(/^\s*([-*•]|\d+\.)\s+/, "").replace(/\*\*|__/g, "").trim())
+    .filter(Boolean)
+    .join("\n");
+
+/**
+ * B5: the grounded answer. Sources come only from Google Search's results
+ * (never from the model's text), and only web links are kept. At teen stage
+ * there is never a summary, whatever the model wrote.
+ */
+export const parseResearch = (
+  text: string,
+  sources: readonly ResearchSource[],
+  stage: Stage,
+  searchWidget?: string,
+  provider: ResearchResult["provider"] = "google",
+): ResearchResult | null => {
+  const seen = new Set<string>();
+  const clean = sources
+    .map((src) => ({ title: str(src.title, 200), url: str(src.url, 2000) }))
+    .filter((src) => /^https?:\/\//i.test(src.url) && !seen.has(src.url) && seen.add(src.url))
+    .map((src) => ({ ...src, title: src.title || new URL(src.url).hostname }))
+    .slice(0, 8);
+  if (!clean.length) return null;
+  const lines = plain(text).split("\n");
+  const whyAt = lines.findLastIndex((l) => WHY_LINE.test(l));
+  const why = whyAt >= 0 ? lines[whyAt].replace(WHY_LINE, "").trim() : "";
+  const body = lines.filter((_, i) => i !== whyAt).join("\n").trim().slice(0, 1500);
+  return {
+    ...(body ? (stage === "teen" ? { guide: body } : { summary: body }) : {}),
+    sources: clean,
+    why: why || "These are the sources the search found for your question.",
+    provider,
+    ...(searchWidget ? { searchWidget } : {}),
+  };
+};
+
+/** B5 fallback: the model's answer about Wikipedia articles, with the articles as the sources. */
+export const parseArticleAnswer = (
+  raw: unknown,
+  articles: readonly ResearchSource[],
+  stage: Stage,
+): ResearchResult | null => {
+  if (!isObj(raw)) return null;
+  const text = str(raw.text, 1500);
+  const why = str(raw.why, 400);
+  return parseResearch(why ? `${text}\nWhy: ${why}` : text, articles, stage, undefined, "wikipedia");
+};
+
 /** Dispatch by kind. `taskIds` is needed for kinds whose answer refers to tasks. */
 export const parseResult = <K extends AiKind>(kind: K, raw: unknown, taskIds: readonly string[] = []): AiResultMap[K] | null => {
   switch (kind) {
@@ -114,6 +203,12 @@ export const parseResult = <K extends AiKind>(kind: K, raw: unknown, taskIds: re
       return parseAnalyze(raw) as AiResultMap[K] | null;
     case "popup":
       return parsePopup(raw) as AiResultMap[K] | null;
+    case "breakdown":
+      return parseBreakdown(raw) as AiResultMap[K] | null;
+    case "checkSteps":
+      return parseCheckSteps(raw, taskIds.length) as AiResultMap[K] | null;
+    case "review":
+      return parseReview(raw) as AiResultMap[K] | null;
     default:
       return null;
   }

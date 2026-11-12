@@ -19,6 +19,7 @@ import { useMios } from "@/state/store";
 import { formatMinutes, formatWhen } from "@/ui/format";
 import { Button, Card, Empty, Pill } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
+import assist from "@/features/assist/assist.module.css";
 import s from "./history.module.css";
 
 const FILTERS: { id: HistoryFilter; label: string }[] = [
@@ -185,7 +186,28 @@ function HistoryRow({ item, now }: { item: HistoryItem; now: string }) {
           )}
           {t.source && <Pill>From calendar</Pill>}
           {t.repeat && <Pill>↻ Repeat</Pill>}
+          {t.steps?.length ? (
+            <span>
+              Steps {t.steps.filter((x) => x.done).length}/{t.steps.length}
+            </span>
+          ) : null}
+          {t.research?.length ? <span>Research {t.research.length}</span> : null}
         </div>
+        {t.review && !t.review.skipped && t.review.answers.some((a) => a.answer) && (
+          <details className={assist.answers}>
+            <summary>Your review</summary>
+            <dl>
+              {t.review.answers
+                .filter((a) => a.answer)
+                .map((a) => (
+                  <div key={a.question}>
+                    <dt>{a.question}</dt>
+                    <dd>{a.answer}</dd>
+                  </div>
+                ))}
+            </dl>
+          </details>
+        )}
         {archived && item.expiresAt && (
           <div className={s.expiry}>Gone for good {formatWhen(item.expiresAt, nowDate)}.</div>
         )}

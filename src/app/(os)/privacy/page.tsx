@@ -26,6 +26,13 @@ export default function PrivacyPage() {
             every AI suggestion has a &ldquo;Why?&rdquo; button that shows its reasoning.
           </p>
           <p>
+            <strong>Research, steps and reviews.</strong> When you ask a research question, the question and the task
+            title go to Gemini, which searches with Google Search. If Google Search isn&apos;t available on MiOS&apos;s
+            key, MiOS searches Wikipedia instead, and the question goes to Wikipedia too. Breaking a task into steps and
+            the review after a big task send that task to Gemini. Your own summaries and review answers stay in this
+            browser. At adult stage none of this goes anywhere: steps and the review still work, with no AI.
+          </p>
+          <p>
             <strong>Google&apos;s free tier.</strong> MiOS uses Gemini&apos;s free tier. Under Google&apos;s free-tier
             terms, what MiOS sends and what Gemini answers may be used to improve Google&apos;s products, and people at
             Google may review it. Don&apos;t put anything in a task you wouldn&apos;t want shared that way.

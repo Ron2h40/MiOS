@@ -5,7 +5,7 @@
  * plain data only. The OS core in `src/core` never imports from here: MiOS
  * must keep working with AI turned off.
  */
-import type { ISODateTime, Priority, ProcessState, ProtectedBlock, Stage, TaskModeId } from "@/core";
+import type { ISODateTime, Priority, ProcessState, ProtectedBlock, ResearchSource, Stage, TaskModeId } from "@/core";
 
 /** The P0 AI features. Each one follows the stage rules in `STAGE_POLICY`. */
 export type AiFeature = "priority" | "schedule" | "interrupt" | "estimate";
@@ -102,6 +102,56 @@ export interface AnalyzeResult {
 }
 
 // ---------------------------------------------------------------------------
+// P1 features (B5–B7). No teen pop-ups: their teen versions are the friction.
+// ---------------------------------------------------------------------------
+
+export const ASSIST_CODES = { research: "B5", breakdown: "B6", review: "B7" } as const;
+
+/** B5: child gets a summary with sources; teen gets sources and what to look for, never an answer. */
+export interface ResearchRequest {
+  question: string;
+  task: { title: string; mode: TaskModeId };
+}
+export interface ResearchResult {
+  summary?: string;
+  guide?: string;
+  /** Always from search results (Google, or Wikipedia as a fallback), never written by the model. */
+  sources: ResearchSource[];
+  why: string;
+  provider: "google" | "wikipedia";
+  /** Google's search suggestions, which must be shown with grounded answers. Not saved. */
+  searchWidget?: string;
+}
+
+/** B6, child: the AI splits a big task into steps. */
+export interface BreakdownRequest {
+  task: AiTask;
+}
+export interface BreakdownResult {
+  steps: string[];
+  why: string;
+}
+
+/** B6, teen: the user splits it; the AI only comments. `step` is 1-based, 0 = the plan as a whole. */
+export interface CheckStepsRequest {
+  task: AiTask;
+  steps: string[];
+}
+export interface CheckStepsResult {
+  notes: { step: number; note: string }[];
+  why: string;
+}
+
+/** B7: 2 or 3 reflection questions after a big task. No judgment. */
+export interface ReviewRequest {
+  task: AiTask & { stepsDone: number; stepsTotal: number; onTime: boolean | null };
+}
+export interface ReviewResult {
+  questions: string[];
+  why: string;
+}
+
+// ---------------------------------------------------------------------------
 // Teen-stage pop-up questions
 // ---------------------------------------------------------------------------
 
@@ -143,6 +193,10 @@ export interface AiRequestMap {
   estimate: EstimateRequest;
   analyze: AnalyzeRequest;
   popup: PopupRequest;
+  research: ResearchRequest;
+  breakdown: BreakdownRequest;
+  checkSteps: CheckStepsRequest;
+  review: ReviewRequest;
 }
 export interface AiResultMap {
   priority: PriorityResult;
@@ -151,9 +205,24 @@ export interface AiResultMap {
   estimate: EstimateResult;
   analyze: AnalyzeResult;
   popup: PopupResult;
+  research: ResearchResult;
+  breakdown: BreakdownResult;
+  checkSteps: CheckStepsResult;
+  review: ReviewResult;
 }
 export type AiKind = keyof AiRequestMap;
-export const AI_KINDS: readonly AiKind[] = ["priority", "schedule", "interrupt", "estimate", "analyze", "popup"];
+export const AI_KINDS: readonly AiKind[] = [
+  "priority",
+  "schedule",
+  "interrupt",
+  "estimate",
+  "analyze",
+  "popup",
+  "research",
+  "breakdown",
+  "checkSteps",
+  "review",
+];
 
 export interface AiCall<K extends AiKind = AiKind> {
   kind: K;
@@ -161,7 +230,7 @@ export interface AiCall<K extends AiKind = AiKind> {
   payload: AiRequestMap[K];
 }
 
-export type AiErrorCode = "rate_limited" | "unavailable" | "bad_response" | "bad_request";
+export type AiErrorCode = "rate_limited" | "unavailable" | "bad_response" | "bad_request" | "no_sources";
 
 export type AiResponse<K extends AiKind = AiKind> =
   | { ok: true; result: AiResultMap[K]; /** True when no API key is set and a demo answer was used. */ mock: boolean }
