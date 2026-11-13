@@ -59,7 +59,7 @@ Two things to know on a public address: guests get real AI (see `NEXT_PUBLIC_GUE
 | Framework | Next.js 16 (App Router) + React 19 + TypeScript (strict) | Server route handlers for the Gemini proxy without a separate backend |
 | State | Zustand + `persist` (localStorage, versioned schema) | Small, testable, no boilerplate; storage can later move to a server without touching the UI |
 | Styling | CSS Modules + design tokens in `globals.css` | Styling stays separate from logic, so a redesign is a restyle, not a rewrite |
-| AI | Google Gemini `gemini-3.1-flash-lite` via REST, behind a Next.js route | Cheapest stable model with a free tier (checked Nov 2026); the key never reaches the browser |
+| AI | Google Gemini `gemini-3.1-flash-lite` via REST, behind a Next.js route | Cheapest stable model with a free tier (checked Nov 2026); the key never reaches the browser. When Google says it is overloaded (500/503), MiOS retries once, then uses `gemini-3.5-flash-lite` for that request |
 | Calendar | `ical.js` for .ics; Google Calendar API v3 with Google Identity Services (token model) | Time zones and repeat rules handled by a proven parser; Google sync runs in the browser with no server and no client secret |
 | Accounts | Firebase Auth (Google, email and password) + Firestore | Optional sign-in; data syncs per item with a three-way merge; the server checks sign-in tokens with `jose` and needs no secret |
 | Tests | Vitest | Fast unit tests for the pure domain core and AI helpers |

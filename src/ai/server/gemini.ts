@@ -24,8 +24,16 @@ export class GeminiError extends Error {
 
 export const geminiConfigured = (): boolean => Boolean(process.env.GEMINI_API_KEY);
 
-const request = async (body: unknown): Promise<Response> => {
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+/**
+ * When the main model is overloaded (Google answers 500 or 503 "high
+ * demand"), MiOS waits briefly and tries again, then asks this model instead.
+ * Checked 2026-11-12: answering on the free tier while the main one was busy.
+ */
+export const FALLBACK_MODEL = "gemini-3.5-flash-lite";
+
+const busy = (res: Response) => res.status === 500 || res.status === 503;
+
+const send = (body: unknown, model: string): Promise<Response> => {
   return fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY ?? "" },
@@ -33,6 +41,17 @@ const request = async (body: unknown): Promise<Response> => {
     signal: AbortSignal.timeout(TIMEOUT_MS),
     cache: "no-store",
   });
+};
+
+const request = async (body: unknown): Promise<Response> => {
+  const main = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || FALLBACK_MODEL;
+  let res = await send(body, main);
+  if (!busy(res)) return res;
+  await new Promise((r) => setTimeout(r, 800));
+  res = await send(body, main);
+  if (!busy(res) || fallback === main) return res;
+  return send(body, fallback);
 };
 
 export interface GroundedAnswer {
