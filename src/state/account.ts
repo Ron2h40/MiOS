@@ -271,6 +271,69 @@ export const flushNow = async (): Promise<void> => {
   await flush(s);
 };
 
+/** What signing out right now would lose. */
+export type SignOutRisk =
+  | { kind: "safe" }
+  /** Email not verified: nothing was ever copied to the account. */
+  | { kind: "unverified"; tasks: number }
+  /** Verified, but some changes haven't reached the account (offline, or sync failing). */
+  | { kind: "unsaved"; items: number; reason?: string };
+
+const SIGN_OUT_WAIT_MS = 8_000;
+
+/** Items here that differ from what the account last confirmed. */
+const unsavedCount = (base: ReadonlyMap<string, ReadonlyMap<string, string>>): number => {
+  let n = 0;
+  for (const side of SIDES) {
+    const state = side.get();
+    for (const c of side.collections) {
+      const local = c.read(state);
+      const b = base.get(c.name) ?? new Map<string, string>();
+      for (const [id, v] of local) if (b.get(id) !== hashOf(v)) n++;
+      for (const id of b.keys()) if (!local.has(id)) n++;
+    }
+  }
+  return n;
+};
+
+const hasAnyData = (data: MiosData) =>
+  data.tasks.length + data.archive.length + data.events.length + data.resourceEntries.length + data.calendarEvents.length > 0;
+
+/**
+ * Before signing out: save what's waiting (giving up after a few seconds, e.g.
+ * offline), then say whether anything would be lost. Signing out clears this
+ * browser, so anything not in the account is gone for good.
+ */
+export const checkBeforeSignOut = async (): Promise<SignOutRisk> => {
+  const { account, phase, message } = useAccount.getState();
+  if (!account) return { kind: "safe" };
+  if (!account.verified) {
+    const data = useMios.getState();
+    return hasAnyData(data) ? { kind: "unverified", tasks: data.tasks.length + data.archive.length } : { kind: "safe" };
+  }
+  const s = session;
+  if (!s || phase === "choose") {
+    // Sync never finished starting here: compare with what was last synced on this browser.
+    const items = unsavedCount(loadBase(account.uid) ?? new Map());
+    return items ? { kind: "unsaved", items, reason: message } : { kind: "safe" };
+  }
+  clearTimeout(s.timer);
+  const deadline = Date.now() + SIGN_OUT_WAIT_MS;
+  const settled = (async () => {
+    // A save already running finishes first; then one more pass picks up anything newer.
+    while (s.flushing && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
+    await flush(s);
+  })();
+  const timedOut = await Promise.race([settled.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), SIGN_OUT_WAIT_MS))]);
+  const items = unsavedCount(s.base);
+  if (!items) return { kind: "safe" };
+  return {
+    kind: "unsaved",
+    items,
+    reason: timedOut ? "MiOS can't reach your account right now." : useAccount.getState().message,
+  };
+};
+
 /** The answer to the first-sign-in question. */
 export const chooseFirstSync = (keepLocal: boolean) => decide?.(keepLocal);
 

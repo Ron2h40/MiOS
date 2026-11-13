@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { aiAccessNotice } from "@/ai/access";
-import { authMessage, signOutAccount } from "@/integrations/firebase/auth";
 import { firebaseConfigured } from "@/integrations/firebase/client";
-import { chooseFirstSync, flushNow, forgetLocalData, retrySync, startAccountWatch, useAccount } from "@/state/account";
+import { chooseFirstSync, retrySync, startAccountWatch, useAccount } from "@/state/account";
 import { formatWhen } from "@/ui/format";
 import { Button, Dialog } from "@/ui/primitives";
-import { useToast } from "@/ui/toast";
+import { FeedbackLink } from "./FeedbackLink";
 import { SignInDialog, VerifyDialog } from "./SignInDialog";
+import { SignOutDialog } from "./SignOutDialog";
 import s from "./account.module.css";
 
 /** Mounted once in the app shell: follows sign-in, and asks the first-sync question when needed. */
@@ -93,35 +93,18 @@ export function AccountButton() {
       >
         {initial}
       </button>
-      {open && <AccountMenu onClose={() => setOpen(false)} />}
+      {open && <AccountMenu />}
     </div>
   );
 }
 
-function AccountMenu({ onClose }: { onClose: () => void }) {
+function AccountMenu() {
   const account = useAccount((st) => st.account)!;
   const phase = useAccount((st) => st.phase);
   const message = useAccount((st) => st.message);
   const lastSyncedAt = useAccount((st) => st.lastSyncedAt);
-  const toast = useToast((t) => t.show);
   const [verifying, setVerifying] = useState(false);
-
-  const signOut = async () => {
-    if (!confirm("Sign out? Your data stays in your account and is removed from this browser.")) return;
-    try {
-      await flushNow();
-    } catch {
-      // Anything unsaved is still in the account's queue or this browser; signing out anyway was the user's call.
-    }
-    forgetLocalData();
-    try {
-      await signOutAccount();
-      toast("Signed out. This browser is empty again.");
-    } catch (e) {
-      toast(authMessage(e), "warn");
-    }
-    onClose();
-  };
+  const [signingOut, setSigningOut] = useState(false);
 
   return (
     <div className={s.menu} role="dialog" aria-label="Account">
@@ -152,10 +135,13 @@ function AccountMenu({ onClose }: { onClose: () => void }) {
 
       <p className={s.fine}>{aiAccessNotice(true)}</p>
 
-      <Button size="sm" onClick={() => void signOut()}>
+      <FeedbackLink className={s.fine} />
+
+      <Button size="sm" onClick={() => setSigningOut(true)}>
         Sign out
       </Button>
       {verifying && <VerifyDialog onClose={() => setVerifying(false)} />}
+      {signingOut && <SignOutDialog onClose={() => setSigningOut(false)} />}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { ALL_MODES } from "@/core";
 import { AiRuntime } from "@/features/ai/AiRuntime";
 import { Onboarding } from "@/features/ai/AiDisclosure";
 import { AccountButton, AccountRuntime } from "@/features/account/Account";
+import { FeedbackLink } from "@/features/account/FeedbackLink";
 import { ReviewRuntime } from "@/features/assist/ReviewRuntime";
 import { CalendarRuntime, CheckInBanner } from "@/features/calendar/CheckIn";
 import { GoogleRuntime } from "@/features/calendar/GoogleSync";
@@ -94,6 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <footer className={s.footer}>
         MiOS v1 · {hydrated ? <WhereDataLives /> : "Your data stays in this browser"}
         <Link href="/privacy">Privacy</Link>
+        <FeedbackLink label="Feedback" />
       </footer>
     </div>
   );
