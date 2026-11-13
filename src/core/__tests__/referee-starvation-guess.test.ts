@@ -37,6 +37,13 @@ describe("starvation flag (A5)", () => {
     const flags = findStarved([old, fresh, done], { starvationDays: 14 }, NOW);
     expect(flags.map((f) => [f.task.id, f.daysWaiting])).toEqual([[old.id, 16]]);
   });
+
+  it("flags Ready tasks nobody has touched too; Running ones never", () => {
+    const untouched = makeTask({ state: "ready", stateChangedAt: "2026-10-18T12:00:00.000Z" });
+    const running = makeTask({ state: "running", stateChangedAt: "2026-10-01T12:00:00.000Z" });
+    const flags = findStarved([untouched, running], { starvationDays: 14 }, NOW);
+    expect(flags.map((f) => [f.task.id, f.daysWaiting])).toEqual([[untouched.id, 18]]);
+  });
 });
 
 describe("time-guess training (A9)", () => {
