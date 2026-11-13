@@ -5,8 +5,15 @@ import { googleClientId, hasValidToken, preloadGoogle } from "@/integrations/goo
 import { connectGoogle, disconnectGoogle, syncGoogle, useGoogleRuntime } from "@/state/google";
 import { useNow } from "@/state/hooks";
 import { useMios } from "@/state/store";
-import { Button, Card } from "@/ui/primitives";
+import { Button, Card, Pill } from "@/ui/primitives";
 import s from "./calendar.module.css";
+
+/**
+ * Until Google verifies MiOS's calendar access, only the test users listed in
+ * Google Cloud can connect. Set NEXT_PUBLIC_GOOGLE_CALENDAR_OPEN=1 (and
+ * redeploy) once verification passes, to drop the label.
+ */
+const INVITE_ONLY = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_OPEN !== "1";
 
 const AUTO_SYNC_MS = 5 * 60_000;
 const AFTER_CHANGE_MS = 15_000;
@@ -44,7 +51,16 @@ export function GoogleCard() {
 
   return (
     <Card
-      title="Google Calendar"
+      title={
+        <>
+          Google Calendar{" "}
+          {INVITE_ONLY && (
+            <span title="Only invited testers can connect while Google reviews MiOS">
+              <Pill tone="tag">Invite-only beta</Pill>
+            </span>
+          )}
+        </>
+      }
       hint="Reads your main calendar. Writes only to a separate “MiOS” calendar it creates, never to your own events."
       action={
         google.enabled ? (
@@ -83,11 +99,15 @@ export function GoogleCard() {
       ) : (
         <p className={s.note}>
           Your tasks with a planned start and your deadlines go to a “MiOS” calendar in Google. Move or delete one there and
-          MiOS follows; deleting never deletes the task. While MiOS is in testing, Google shows an “unverified app” screen
-          first and asks you to approve again every 7 days.
+          MiOS follows; deleting never deletes the task.
+          {INVITE_ONLY &&
+            " Invite-only beta: Google is still reviewing MiOS's calendar access, so only invited testers can connect for now. Anyone else sees “Access blocked” from Google. Testers see an “unverified app” screen first and approve again every 7 days."}
         </p>
       )}
       {message && <p className={phase === "error" ? s.warn : s.note}>{message}</p>}
+      {INVITE_ONLY && phase === "needs-sign-in" && (
+        <p className={s.note}>If Google said access is blocked, this Google account isn&apos;t an invited tester yet.</p>
+      )}
     </Card>
   );
 }

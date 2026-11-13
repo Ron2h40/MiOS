@@ -26,7 +26,7 @@ Without `GEMINI_API_KEY`, every AI feature still works using demo answers, label
 3. Create an OAuth client of type **Web application** with `http://localhost:3000` as an authorized JavaScript origin. No redirect URI or client secret is needed.
 4. Put the client ID in `.env.local` as `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, then open **Calendar → Google Calendar → Connect**.
 
-While the app is in Testing, Google shows an "unverified app" screen, allows up to 100 test users, and asks for approval again every 7 days.
+While the app is in Testing, Google shows an "unverified app" screen, allows up to 100 test users, and asks for approval again every 7 days. The Calendar card is labelled **Invite-only beta** and explains this; set `NEXT_PUBLIC_GOOGLE_CALENDAR_OPEN=1` (and redeploy) once Google has verified the app.
 
 ### Accounts and sync (optional)
 
