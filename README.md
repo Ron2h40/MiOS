@@ -41,6 +41,17 @@ Without these values MiOS runs as a guest-only app, with everything in the brows
 
 `NEXT_PUBLIC_GUEST_AI=demo` gives guests demo AI answers instead of real Gemini (the default is `real` for now).
 
+### Deploying to Vercel
+
+1. Sign in to [vercel.com](https://vercel.com) with GitHub, click **Add New → Project**, and import this repository. Vercel detects Next.js; keep the defaults.
+2. Before the first deploy, open **Environment Variables** and add the same values as `.env.local`: `GEMINI_API_KEY` (mark it Sensitive), `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and the four `NEXT_PUBLIC_FIREBASE_*` values. Optional: `GEMINI_MODEL`, `NEXT_PUBLIC_GUEST_AI`.
+3. Deploy. The site gets an address like `https://mios-xyz.vercel.app`. Every push to `master` deploys again.
+4. **Firebase console → Authentication → Settings → Authorized domains:** add that address (without `https://`), or sign-in fails with "isn't allowed from this address".
+5. **Google Cloud Console → Google Auth Platform → Clients → the Calendar web client:** add `https://<your address>` under Authorized JavaScript origins, so Google Calendar sync works there.
+6. Changing an environment variable later needs a redeploy (Deployments → ⋯ → Redeploy), since `NEXT_PUBLIC_*` values are built into the page.
+
+Two things to know on a public address: guests get real AI (see `NEXT_PUBLIC_GUEST_AI`) and the daily AI counts live in each server's memory, so keep the address private, or set `NEXT_PUBLIC_GUEST_AI=demo`, until the counts move to a database.
+
 ## Stack
 
 | Layer | Choice | Why |
