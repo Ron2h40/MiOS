@@ -43,7 +43,10 @@ export const toAccount = (u: User): Account => {
 export const watchAccount = (cb: (a: Account | null) => void) => onAuthStateChanged(firebaseAuth(), (u) => cb(u ? toAccount(u) : null));
 
 export const signInWithGoogle = async (): Promise<void> => {
-  await signInWithPopup(firebaseAuth(), new GoogleAuthProvider());
+  // Always show Google's account chooser, instead of silently reusing the last account.
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  await signInWithPopup(firebaseAuth(), provider);
 };
 
 export const signInWithEmail = async (email: string, password: string): Promise<void> => {
@@ -81,7 +84,12 @@ export const confirmItsYou = async (password?: string): Promise<void> => {
   const u = firebaseAuth().currentUser;
   if (!u) throw new Error("Not signed in");
   const google = u.providerData.some((p) => p.providerId === "google.com");
-  if (google) await reauthenticateWithPopup(u, new GoogleAuthProvider());
+  if (google) {
+    // Confirming it's you: point Google at the account that's signed in.
+    const provider = new GoogleAuthProvider();
+    if (u.email) provider.setCustomParameters({ login_hint: u.email });
+    await reauthenticateWithPopup(u, provider);
+  }
   else await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email ?? "", password ?? ""));
 };
 

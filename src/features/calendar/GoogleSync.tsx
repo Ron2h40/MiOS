@@ -49,7 +49,7 @@ export function GoogleCard() {
       action={
         google.enabled ? (
           <div className={s.actions}>
-            <Button size="sm" variant="primary" disabled={busy} onClick={() => (signedIn ? syncGoogle() : connectGoogle())}>
+            <Button size="sm" variant="primary" disabled={busy} onClick={() => (signedIn ? syncGoogle() : connectGoogle({ chooseAccount: false }))}>
               {phase === "syncing" ? "Syncing…" : phase === "connecting" ? "Signing in…" : "Sync now"}
             </Button>
             <Button

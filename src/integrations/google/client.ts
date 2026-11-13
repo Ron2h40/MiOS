@@ -84,7 +84,7 @@ export class GoogleAuthError extends Error {}
  * Ask Google for an access token. Call from a click: Google shows a popup.
  * Once the user has agreed, later calls close the popup by themselves.
  */
-export const requestToken = async (clientId: string, prompt: "" | "consent" = ""): Promise<void> => {
+export const requestToken = async (clientId: string, prompt: "" | "consent" | "select_account" = ""): Promise<void> => {
   const oauth2 = await loadGis();
   await new Promise<void>((resolve, reject) => {
     const client = oauth2.initTokenClient({

@@ -200,13 +200,17 @@ export const syncGoogle = async (): Promise<void> => {
   return running;
 };
 
-/** From a click: sign in (a Google window opens), then sync. */
-export const connectGoogle = async (): Promise<void> => {
+/**
+ * From a click: sign in (a Google window opens), then sync. Connecting asks
+ * which Google account to use; reconnecting after a reload (`chooseAccount`
+ * false) reuses the one already connected.
+ */
+export const connectGoogle = async ({ chooseAccount = true }: { chooseAccount?: boolean } = {}): Promise<void> => {
   const clientId = googleClientId();
   if (!clientId) return;
   setPhase("connecting");
   try {
-    await requestToken(clientId);
+    await requestToken(clientId, chooseAccount ? "select_account" : "");
   } catch (e) {
     setPhase("needs-sign-in", e instanceof Error ? e.message : "Google sign-in failed.");
     return;
