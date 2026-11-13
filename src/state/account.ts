@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { confirmItsYou, deleteSignIn, watchAccount, type Account } from "@/integrations/firebase/auth";
 import { firebaseConfigured } from "@/integrations/firebase/client";
+import { forgetGoogleToken } from "@/integrations/google/client";
 import { hashOf, reconcile, type Base } from "@/integrations/firebase/reconcile";
 import { deleteAll, listen, readAll, writeAll, type RemoteChange } from "@/integrations/firebase/remote";
 import { useAi } from "./ai";
@@ -289,6 +290,8 @@ export const forgetLocalData = () => {
   }
   useMios.getState().reset();
   useAi.getState().reset();
+  // The next person on this browser shouldn't reach this person's Google Calendar.
+  forgetGoogleToken();
   set({ phase: "off", message: undefined, choice: undefined, lastSyncedAt: undefined });
 };
 

@@ -78,7 +78,7 @@ export function GoogleCard() {
           {lastResult ? ` · ${lastResult}` : ""}.{" "}
           {signedIn
             ? "Syncs every few minutes while MiOS is open."
-            : "Paused until you press Sync now (Google asks MiOS to sign in again each visit)."}
+            : "Paused until you press Sync now (Google asks MiOS to confirm about once an hour)."}
         </p>
       ) : (
         <p className={s.note}>

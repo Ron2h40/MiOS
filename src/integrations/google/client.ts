@@ -2,8 +2,10 @@ import type { GEvent } from "./mapping";
 
 /**
  * E2: talking to Google from the browser. Sign-in uses Google Identity
- * Services' token model: no server, no client secret, no refresh token. The
- * access token lives in memory only and is never saved.
+ * Services' token model: no server, no client secret, no refresh token.
+ * Google's access token lasts about an hour; it's kept in this browser until
+ * then, so a reload or a new visit within the hour doesn't ask again. It's
+ * removed on Disconnect and on sign-out.
  */
 
 export const GOOGLE_SCOPES = [
@@ -74,9 +76,45 @@ export const preloadGoogle = () => {
   void loadGis().catch(() => {});
 };
 
-let token: { value: string; expiresAt: number } | null = null;
+type Token = { value: string; expiresAt: number };
 
-export const hasValidToken = () => !!token && token.expiresAt > Date.now() + 60_000;
+const TOKEN_KEY = "mios:google-token";
+let token: Token | null = null;
+let loaded = false;
+
+/** The token, read from this browser once per page. Expired ones are dropped. */
+const current = (): Token | null => {
+  if (!loaded) {
+    loaded = true;
+    try {
+      const saved = JSON.parse(localStorage.getItem(TOKEN_KEY) ?? "null") as Token | null;
+      if (saved && typeof saved.value === "string" && saved.expiresAt > Date.now()) token = saved;
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      token = null;
+    }
+  }
+  return token;
+};
+
+const setToken = (t: Token | null) => {
+  token = t;
+  loaded = true;
+  try {
+    if (t) localStorage.setItem(TOKEN_KEY, JSON.stringify(t));
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Storage blocked: the token still works for this page.
+  }
+};
+
+/** On sign-out: forget the token here, without revoking MiOS's access in Google. */
+export const forgetGoogleToken = () => setToken(null);
+
+export const hasValidToken = () => {
+  const t = current();
+  return !!t && t.expiresAt > Date.now() + 60_000;
+};
 
 export class GoogleAuthError extends Error {}
 
@@ -96,7 +134,7 @@ export const requestToken = async (clientId: string, prompt: "" | "consent" | "s
         if (!oauth2.hasGrantedAllScopes(r, scopes[0], ...scopes.slice(1))) {
           return reject(new GoogleAuthError("MiOS needs both calendar permissions to sync. Please tick both boxes."));
         }
-        token = { value: r.access_token, expiresAt: Date.now() + Number(r.expires_in ?? 3600) * 1000 };
+        setToken({ value: r.access_token, expiresAt: Date.now() + Number(r.expires_in ?? 3600) * 1000 });
         resolve();
       },
       error_callback: (e) =>
@@ -108,8 +146,8 @@ export const requestToken = async (clientId: string, prompt: "" | "consent" | "s
 
 /** Forget the token and tell Google to revoke MiOS's access. */
 export const revokeGoogle = async (): Promise<void> => {
-  const t = token?.value;
-  token = null;
+  const t = current()?.value;
+  setToken(null);
   if (!t) return;
   const oauth2 = await loadGis().catch(() => null);
   await new Promise<void>((resolve) => (oauth2 ? oauth2.revoke(t, resolve) : resolve()));
@@ -134,10 +172,10 @@ const call = async <T>(path: string, init: RequestInit = {}, attempt = 0): Promi
   if (!hasValidToken()) throw new GoogleAuthError("Google sign-in expired.");
   const res = await fetch(`${API}${path}`, {
     ...init,
-    headers: { Authorization: `Bearer ${token!.value}`, "Content-Type": "application/json", ...init.headers },
+    headers: { Authorization: `Bearer ${current()!.value}`, "Content-Type": "application/json", ...init.headers },
   });
   if (res.status === 401) {
-    token = null;
+    setToken(null);
     throw new GoogleAuthError("Google sign-in expired.");
   }
   // Rate limits: back off and retry a few times (Google's advice).
