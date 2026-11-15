@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { b8Active, B8_MAX_WAIT_MS, B8_QUIET_MS, describeEvent, isB8Trigger } from "@/ai/backgroundLog";
 import type { AiFeature } from "@/ai/types";
-import type { MiosEvent } from "@/core";
+import { medHabits, type MiosEvent } from "@/core";
 import { callAi, toAiTask, useAi } from "@/state/ai";
 import { useMios } from "@/state/store";
 
@@ -26,7 +26,7 @@ export function AiRuntime() {
       quiet = deadline = undefined;
       const batch = pending;
       pending = [];
-      const { tasks, events, settings } = useMios.getState();
+      const { tasks, events, settings, meds, medLogs, resourceEntries } = useMios.getState();
       if (!batch.length || !b8Active(settings.stage)) return;
 
       const byId = new Map(tasks.map((t) => [t.id, t]));
@@ -35,6 +35,7 @@ export function AiRuntime() {
         recentEvents: events.slice(-30).map((e) => describeEvent(e, byId)),
         tasks: tasks.filter((t) => t.state !== "done").slice(0, 30).map((t) => toAiTask(t, byId)),
         previousSummary: useAi.getState().log[0]?.summary ?? "",
+        habits: medHabits(meds, medLogs, resourceEntries, Date.now(), settings.medDayStartHour ?? 0),
       });
       // Failures are dropped quietly; the next action tries again.
       if (r.ok) useAi.getState().recordAnalysis(r.result, batch.map((e) => describeEvent(e, byId)));

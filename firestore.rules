@@ -19,7 +19,7 @@ service cloud.firestore {
 
     function knownCollection(name) {
       return name in ['tasks', 'events', 'archive', 'repeats', 'resources', 'wraps',
-                      'calendarSources', 'calendarEvents', 'meta', 'aiLog', 'aiMeta'];
+                      'calendarSources', 'calendarEvents', 'meta', 'aiLog', 'aiMeta', 'meds', 'medLogs'];
     }
 
     // One item: its JSON text in `v`, and the server time of the write in `t`.

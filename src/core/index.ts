@@ -21,3 +21,4 @@ export * from "./repeats";
 export * from "./agenda";
 export * from "./history";
 export * from "./assist";
+export * from "./meds";

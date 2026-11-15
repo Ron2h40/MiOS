@@ -35,7 +35,14 @@ export type MiosEvent =
   /** An unfinished, untouched day of a repeating task was replaced by the next one. */
   | { type: "repeat_replaced"; at: ISODateTime; stage: Stage; taskId: string; byTaskId: string }
   /** B5–B7: the user did the thinking: wrote a summary, wrote steps, or answered a review. */
-  | { type: "own_work"; at: ISODateTime; stage: Stage; taskId: string; kind: "summary" | "steps" | "review" };
+  | { type: "own_work"; at: ISODateTime; stage: Stage; taskId: string; kind: "summary" | "steps" | "review" }
+  /**
+   * Daily medicines. Habits only: never which medicine. `lateMinutes` is null
+   * when the dose had no due time; `scheduled` is false for an extra or
+   * as-needed dose.
+   */
+  | { type: "med_logged"; at: ISODateTime; stage: Stage; scheduled: boolean; lateMinutes: number | null }
+  | { type: "med_dismissed"; at: ISODateTime; stage: Stage };
 
 export type MiosEventType = MiosEvent["type"];
 

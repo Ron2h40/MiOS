@@ -117,6 +117,8 @@ export const MIOS_COLLECTIONS: readonly Collection<MiosData>[] = [
     (e) => e.key,
     (a, b) => a.start.localeCompare(b.start),
   ),
+  keyed("meds", (s) => s.meds, (meds) => ({ meds }), (m) => m.id),
+  keyed("medLogs", (s) => s.medLogs, (medLogs) => ({ medLogs }), (l) => l.id, (a, b) => a.at.localeCompare(b.at)),
   singles<MiosData, "settings" | "startedAt" | "tolerances" | "celebrated" | "calendarDecisions" | "google">(
     "meta",
     ["settings", "startedAt", "tolerances", "celebrated", "calendarDecisions", "google"],

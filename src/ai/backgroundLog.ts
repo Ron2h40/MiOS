@@ -34,6 +34,8 @@ export const isB8Trigger = (e: MiosEvent): boolean => {
     case "popup_question":
       return e.outcome === "answered";
     case "own_work":
+    case "med_logged":
+    case "med_dismissed":
       return true;
     default:
       return false;
@@ -91,5 +93,13 @@ export const describeEvent = (e: MiosEvent, tasksById: ReadonlyMap<string, Task>
       return `${when} left ${title(e.taskId)} unfinished until the next one replaced it`;
     case "own_work":
       return `${when} ${OWN_WORK[e.kind]} for ${title(e.taskId)} without AI writing it`;
+    case "med_logged":
+      return !e.scheduled
+        ? `${when} logged an as-needed or extra medicine dose`
+        : e.lateMinutes === null || e.lateMinutes < 15
+          ? `${when} logged a daily medicine dose on time`
+          : `${when} logged a daily medicine dose ${e.lateMinutes} min after its time`;
+    case "med_dismissed":
+      return `${when} dismissed a daily medicine reminder`;
   }
 };

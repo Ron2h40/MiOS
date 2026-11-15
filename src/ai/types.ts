@@ -95,6 +95,8 @@ export interface AnalyzeRequest {
   recentEvents: string[];
   tasks: AiTask[];
   previousSummary: string;
+  /** Habit summaries with nothing identifying (e.g. daily medicine doses, never which medicine). */
+  habits?: string[];
 }
 export interface AnalyzeResult {
   summary: string;

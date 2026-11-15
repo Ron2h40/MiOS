@@ -16,6 +16,7 @@ import { useMios } from "@/state/store";
 import { formatTime, fromLocalInput } from "@/ui/format";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
+import { MedsCard } from "@/features/meds/MedsCard";
 import { ChartLegend, ChartTable, DayChart } from "./DayChart";
 import { ResourceStrip } from "./ResourceStrip";
 import s from "./resources.module.css";
@@ -82,6 +83,7 @@ export function ResourcesScreen() {
             </div>
           </Card>
 
+          <MedsCard now={nowMs} />
           <MedicineCard />
         </div>
 

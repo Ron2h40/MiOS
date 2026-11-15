@@ -132,4 +132,6 @@ export interface Settings {
   defaultEstimateMinutes: number;
   /** When the user finished onboarding and saw the AI disclosure. */
   onboardedAt?: ISODateTime;
+  /** Daily medicines: the hour a new medicine day starts (0 = midnight). */
+  medDayStartHour?: number;
 }

@@ -57,6 +57,10 @@ import {
   type TaskModeId,
   type TaskResearch,
   type TaskReview,
+  type DailyMed,
+  type MedLog,
+  medDayOf,
+  minutesLate,
   cleanSteps,
   reviewAnswered,
 } from "@/core";
@@ -125,6 +129,9 @@ interface Data {
   repeats: RepeatSeries[];
   /** Deleted and replaced tasks, kept 30 days so they can be restored (History). */
   archive: ArchivedTask[];
+  /** Daily medicines and their log (taken or dismissed), kept for good. */
+  meds: DailyMed[];
+  medLogs: MedLog[];
 }
 
 /** Everything MiOS keeps for one person (what's saved, exported and synced). */
@@ -211,6 +218,17 @@ interface Actions {
 
   /** C2: log an item now or at another time. Sleep takes hours slept. */
   logResource(itemId: string, opts?: { at?: ISODateTime; hours?: number }): ResourceEntry;
+  /** Daily medicines. */
+  addMed(input: Omit<DailyMed, "id" | "createdAt">): DailyMed;
+  updateMed(id: string, patch: Partial<Omit<DailyMed, "id" | "createdAt">>): void;
+  setMedPaused(id: string, paused: boolean): void;
+  /** Stops reminders; the medicine's history stays. */
+  removeMed(id: string): void;
+  /** Taken (now, or at an earlier time). Without a dose id it's an extra or as-needed dose. */
+  takeDose(medId: string, doseId?: string, at?: ISODateTime): MedLog | null;
+  /** The reminder came at the wrong time: hide it for today. */
+  dismissDose(medId: string, doseId: string): void;
+  undoMedLog(logId: string): void;
   removeResource(entryId: string): void;
   /** C4: set or clear (null) an item's personal tolerance. */
   setTolerance(itemId: string, tolerance: Tolerance | null): void;
@@ -278,6 +296,8 @@ const initialData = (): Data => ({
   google: GOOGLE_INITIAL,
   repeats: [],
   archive: [],
+  meds: [],
+  medLogs: [],
 });
 
 /** Blocked tasks whose blockers have all cleared wake up into Ready, like an OS process. */
@@ -696,6 +716,8 @@ export const useMios = create<MiosStore>()(
               google: { ...GOOGLE_INITIAL, ...(parsed.google?.calendarId ? { calendarId: parsed.google.calendarId } : {}) },
               repeats: Array.isArray(parsed.repeats) ? parsed.repeats : [],
               archive: Array.isArray(parsed.archive) ? parsed.archive : [],
+              meds: Array.isArray(parsed.meds) ? parsed.meds : [],
+              medLogs: Array.isArray(parsed.medLogs) ? parsed.medLogs : [],
             });
             return ok(undefined);
           } catch {
@@ -713,6 +735,75 @@ export const useMios = create<MiosStore>()(
             resourceEntries: pruneEntries([...s.resourceEntries, entry], Date.now()).sort((a, b) => a.at.localeCompare(b.at)),
           }));
           return entry;
+        },
+
+        addMed(input) {
+          const med: DailyMed = { ...input, name: input.name.trim().slice(0, 80), id: uid(), createdAt: now() };
+          set((s) => ({ meds: [...s.meds, med] }));
+          return med;
+        },
+
+        updateMed(id, patch) {
+          set((s) => ({
+            meds: s.meds.map((m) => (m.id === id ? { ...m, ...patch, ...(patch.name ? { name: patch.name.trim().slice(0, 80) } : {}) } : m)),
+          }));
+        },
+
+        setMedPaused(id, paused) {
+          set((s) => ({
+            meds: s.meds.map((m) => {
+              if (m.id !== id) return m;
+              if (paused) return { ...m, pausedAt: now() };
+              const rest = { ...m };
+              delete rest.pausedAt;
+              return rest;
+            }),
+          }));
+        },
+
+        removeMed(id) {
+          set((s) => ({ meds: s.meds.map((m) => (m.id === id ? { ...m, removedAt: now() } : m)) }));
+        },
+
+        takeDose(medId, doseId, at) {
+          const med = get().meds.find((m) => m.id === medId);
+          if (!med) return null;
+          const startHour = get().settings.medDayStartHour ?? 0;
+          const takenAt = at ?? now();
+          // A reminder answers today's dose; an extra dose counts for the day it was taken.
+          const day = medDayOf(doseId ? Date.now() : Date.parse(takenAt), startHour);
+          const dose = doseId ? med.doses.find((d) => d.id === doseId) : undefined;
+          // A preset medicine also moves the charts, like logging it in Resources.
+          const entry = med.presetId ? get().logResource(med.presetId, { at: takenAt }) : undefined;
+          const log: MedLog = {
+            id: uid(),
+            medId,
+            ...(dose ? { doseId: dose.id } : {}),
+            day,
+            at: takenAt,
+            status: "taken",
+            ...(entry ? { entryId: entry.id } : {}),
+          };
+          set((s) => ({ medLogs: [...s.medLogs.filter((l) => !(dose && l.medId === medId && l.doseId === dose.id && l.day === day)), log] }));
+          const late = dose ? minutesLate(dose.trigger, day, Date.parse(takenAt), get().resourceEntries, startHour) : null;
+          pushEvents({ type: "med_logged", scheduled: !!dose, lateMinutes: late });
+          return log;
+        },
+
+        dismissDose(medId, doseId) {
+          const day = medDayOf(Date.now(), get().settings.medDayStartHour ?? 0);
+          const log: MedLog = { id: uid(), medId, doseId, day, at: now(), status: "dismissed" };
+          set((s) => ({ medLogs: [...s.medLogs.filter((l) => !(l.medId === medId && l.doseId === doseId && l.day === day)), log] }));
+          pushEvents({ type: "med_dismissed" });
+        },
+
+        undoMedLog(logId) {
+          const log = get().medLogs.find((l) => l.id === logId);
+          if (!log) return;
+          set((s) => ({
+            medLogs: s.medLogs.filter((l) => l.id !== logId),
+            resourceEntries: log.entryId ? s.resourceEntries.filter((e) => e.id !== log.entryId) : s.resourceEntries,
+          }));
         },
 
         removeResource(entryId) {
@@ -983,6 +1074,8 @@ export const useMios = create<MiosStore>()(
         google,
         repeats,
         archive,
+        meds,
+        medLogs,
       }) => ({
         tasks,
         events,
@@ -998,6 +1091,8 @@ export const useMios = create<MiosStore>()(
         google,
         repeats,
         archive,
+        meds,
+        medLogs,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
       migrate: (persisted) => persisted as Data,
@@ -1009,7 +1104,7 @@ export const useMios = create<MiosStore>()(
 export const exportSnapshot = (): string => {
   const s = useMios.getState();
   const { tasks, events, settings, startedAt, resourceEntries, tolerances, celebrated, wraps } = s;
-  const { calendarSources, calendarEvents, calendarDecisions, google, repeats, archive } = s;
+  const { calendarSources, calendarEvents, calendarDecisions, google, repeats, archive, meds, medLogs } = s;
   return JSON.stringify(
     {
       version: SCHEMA_VERSION,
@@ -1028,6 +1123,8 @@ export const exportSnapshot = (): string => {
       google: { calendarId: google.calendarId },
       repeats,
       archive,
+      meds,
+      medLogs,
     },
     null,
     2,

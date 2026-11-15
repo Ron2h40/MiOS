@@ -8,6 +8,7 @@ import { useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import { QueueAssist } from "@/features/ai/QueueAssist";
+import { MedReminders } from "@/features/meds/MedReminders";
 import { ResourceStrip } from "@/features/resources/ResourceStrip";
 import { MiniCalendar } from "@/features/calendar/MiniCalendar";
 import { DeadlockPanel, ModeLoadPanel, StarvationPanel } from "./Panels";
@@ -77,6 +78,7 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
 
   return (
     <div className={s.screen}>
+      <MedReminders />
       <section className={s.hero}>
         <div>
           <div className={s.heroIcon} aria-hidden>

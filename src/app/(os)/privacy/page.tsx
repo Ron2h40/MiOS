@@ -60,6 +60,11 @@ export default function PrivacyPage() {
           <p>
             <strong>Medicine presets</strong> are for personal tracking only and are not medical advice.
           </p>
+          <p>
+            <strong>Daily medicines.</strong> The medicines you set up, their schedules and your log stay in this
+            browser, and in your account if you sign in. Their names and doses are never sent to AI. The background
+            review only sees habits, such as how many doses were logged on time, late, dismissed or missed.
+          </p>
         </div>
       </Card>
     </div>

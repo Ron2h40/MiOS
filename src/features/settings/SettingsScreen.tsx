@@ -83,6 +83,19 @@ export function SettingsScreen() {
               onChange={(e) => updateSettings({ defaultEstimateMinutes: Math.max(5, Number(e.target.value) || 30) })}
             />
           </label>
+          <label>
+            Medicine day starts at
+            <select
+              value={settings.medDayStartHour ?? 0}
+              onChange={(e) => updateSettings({ medDayStartHour: Number(e.target.value) })}
+            >
+              {Array.from({ length: 13 }, (_, h) => (
+                <option key={h} value={h}>
+                  {h === 0 ? "Midnight" : `${String(h).padStart(2, "0")}:00`}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </Card>
 

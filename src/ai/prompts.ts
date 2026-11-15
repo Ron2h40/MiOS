@@ -70,7 +70,7 @@ const builders: { [K in AiKind]: Builder<K> } = {
     schema: S.obj({ minutes: S.num, effort: S.enum(["low", "medium", "high"]), why: S.str }),
   }),
   analyze: (p) => ({
-    user: `Review the user's recent activity in MiOS. Write a short summary and up to 5 notes about their habits (for example: tends to underestimate chores, often reorders after interrupts). Notes help MiOS give better help later. Be specific and neutral. Build on the previous summary.\nWhat just happened: ${json(p.triggers)}\nRecent activity: ${json(p.recentEvents)}\nOpen tasks: ${json(p.tasks)}\nPrevious summary: ${p.previousSummary || "none"}`,
+    user: `Review the user's recent activity in MiOS. Write a short summary and up to 5 notes about their habits (for example: tends to underestimate chores, often reorders after interrupts). Notes help MiOS give better help later. Be specific and neutral. Build on the previous summary.\nWhat just happened: ${json(p.triggers)}\nRecent activity: ${json(p.recentEvents)}\nOpen tasks: ${json(p.tasks)}\nPrevious summary: ${p.previousSummary || "none"}${p.habits?.length ? `\nHabits (neutral observations, not judgments; never guess what a medicine is): ${json(p.habits)}` : ""}`,
     schema: S.obj({ summary: S.str, notes: S.arr(S.str) }),
   }),
   research: (p, call) => ({
