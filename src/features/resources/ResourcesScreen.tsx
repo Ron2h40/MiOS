@@ -9,11 +9,12 @@ import {
   TOLERANCE_RANGE,
   type CurveFact,
   type ItemKind,
+  type ResourceEntry,
   type ResourceItem,
 } from "@/core";
 import { useNow, useResources } from "@/state/hooks";
 import { useMios } from "@/state/store";
-import { formatTime, fromLocalInput } from "@/ui/format";
+import { formatTime, fromLocalInput, toLocalInput } from "@/ui/format";
 import { Button, Card, Empty } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import { MedsCard } from "@/features/meds/MedsCard";
@@ -100,13 +101,16 @@ export function ResourcesScreen() {
 /** C2 + C3: one-tap presets, sleep, and logging at another time. */
 function LogCard() {
   const logResource = useMios((st) => st.logResource);
+  const removeResource = useMios((st) => st.removeResource);
   const toast = useToast((st) => st.show);
   const [at, setAt] = useState("");
   const [sleep, setSleep] = useState("7.5");
 
   const log = (item: ResourceItem) => {
-    logResource(item.id, { at: fromLocalInput(at) });
-    toast(`${item.name} logged${at ? ` at ${formatTime(fromLocalInput(at)!)}` : ""}.`);
+    const entry = logResource(item.id, { at: fromLocalInput(at) });
+    toast(`${item.name} logged${at ? ` at ${formatTime(entry.at)}` : ""}.`, "info", { label: "Undo", onClick: () => removeResource(entry.id) });
+    // An earlier time is for this one item; the next tap is "now" again.
+    setAt("");
   };
 
   return (
@@ -114,8 +118,16 @@ function LogCard() {
       <div className={s.stack}>
         <label>
           When (leave empty for now)
-          <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+          <input type="datetime-local" value={at} max={toLocalInput(new Date().toISOString())} onChange={(e) => setAt(e.target.value)} />
         </label>
+        {at && (
+          <span className={s.presetSub}>
+            The next item you tap is logged at {formatTime(fromLocalInput(at)!)}, then this goes back to now.{" "}
+            <button type="button" className={s.linkButton} onClick={() => setAt("")}>
+              Clear
+            </button>
+          </span>
+        )}
         {GROUPS.map((g) => (
           <div key={g.kind} className={s.group}>
             <span className={s.groupTitle}>{g.title}</span>
@@ -143,6 +155,7 @@ function LogCard() {
               onClick={() => {
                 logResource("sleep", { at: fromLocalInput(at), hours: Number(sleep) });
                 toast(`${sleep} hours of sleep logged.`);
+                setAt("");
               }}
             >
               😴 Log sleep
@@ -177,29 +190,64 @@ function HistoryCard({ dayStart }: { dayStart: number }) {
     .sort((a, b) => b.at.localeCompare(a.at));
 
   return (
-    <Card title="Logged" hint="Remove anything logged by mistake.">
+    <Card title="Logged" hint="Tap a time to change it. Remove anything logged by mistake.">
       {day.length ? (
         <ul className={s.entries}>
-          {day.map((e) => {
-            const item = PRESETS_BY_ID.get(e.itemId);
-            return (
-              <li key={e.id} className={s.entry}>
-                <span className={s.time}>{formatTime(e.at)}</span>
-                <span>
-                  {item?.icon} {item?.name ?? e.itemId}
-                  {e.hours !== undefined && ` · ${e.hours} h`}
-                </span>
-                <Button size="sm" variant="plain" onClick={() => removeResource(e.id)} aria-label={`Remove ${item?.name}`}>
-                  Remove
-                </Button>
-              </li>
-            );
-          })}
+          {day.map((e) => (
+            <LoggedEntry key={e.id} entry={e} onRemove={() => removeResource(e.id)} />
+          ))}
         </ul>
       ) : (
         <Empty>Nothing logged this day.</Empty>
       )}
     </Card>
+  );
+}
+
+/** One logged item. Its time can be fixed when it was logged late. */
+function LoggedEntry({ entry: e, onRemove }: { entry: ResourceEntry; onRemove: () => void }) {
+  const moveResource = useMios((st) => st.moveResource);
+  const [editing, setEditing] = useState<string | null>(null);
+  const item = PRESETS_BY_ID.get(e.itemId);
+  return (
+    <li className={s.entry}>
+      {editing === null ? (
+        <button type="button" className={`${s.time} ${s.linkButton}`} onClick={() => setEditing(toLocalInput(e.at))} aria-label={`Change the time of ${item?.name ?? "this item"}`}>
+          {formatTime(e.at)}
+        </button>
+      ) : (
+        <span className={s.editTime}>
+          <input
+            type="datetime-local"
+            aria-label="When"
+            value={editing}
+            max={toLocalInput(new Date().toISOString())}
+            onChange={(ev) => setEditing(ev.target.value)}
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!editing}
+            onClick={() => {
+              moveResource(e.id, fromLocalInput(editing)!);
+              setEditing(null);
+            }}
+          >
+            Save
+          </Button>
+          <Button size="sm" variant="plain" onClick={() => setEditing(null)}>
+            Cancel
+          </Button>
+        </span>
+      )}
+      <span>
+        {item?.icon} {item?.name ?? e.itemId}
+        {e.hours !== undefined && ` · ${e.hours} h`}
+      </span>
+      <Button size="sm" variant="plain" onClick={onRemove} aria-label={`Remove ${item?.name}`}>
+        Remove
+      </Button>
+    </li>
   );
 }
 

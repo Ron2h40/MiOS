@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { curveAt, PRESETS_BY_ID, RESOURCE_KEYS, startOfDay, type ResourceKey } from "@/core";
 import { useNow, useResources } from "@/state/hooks";
 import { useMios } from "@/state/store";
-import { formatMinutes } from "@/ui/format";
+import { formatMinutes, formatTime, fromLocalInput, toLocalInput } from "@/ui/format";
 import { useToast } from "@/ui/toast";
 import { RESOURCE_LABEL } from "./DayChart";
 import s from "./resources.module.css";
@@ -37,7 +38,10 @@ export function ResourceStrip() {
     return best;
   };
   const logResource = useMios((st) => st.logResource);
+  const removeResource = useMios((st) => st.removeResource);
   const toast = useToast((st) => st.show);
+  // "Earlier…": the next chip tapped is logged at this time, then it's back to now.
+  const [earlier, setEarlier] = useState<string | null>(null);
   const today = startOfDay(Date.parse(now));
   const countToday = (id: string) => entries.filter((e) => e.itemId === id && Date.parse(e.at) >= today).length;
 
@@ -70,8 +74,12 @@ export function ResourceStrip() {
                     type="button"
                     className={s.chip}
                     onClick={() => {
-                      logResource(id);
-                      toast(`${item.name} logged.`);
+                      const entry = logResource(id, { at: earlier ? fromLocalInput(earlier) : undefined });
+                      toast(`${item.name} logged${earlier ? ` at ${formatTime(entry.at)}` : ""}.`, "info", {
+                        label: "Undo",
+                        onClick: () => removeResource(entry.id),
+                      });
+                      setEarlier(null);
                     }}
                     aria-label={`Log ${item.name}`}
                   >
@@ -88,6 +96,29 @@ export function ResourceStrip() {
       <div className={s.stripSide}>
         <Link href="/resources">Charts and log →</Link>
         <span className={s.presetSub}>Sleep, medicine, history</span>
+        {earlier === null ? (
+          <button
+            type="button"
+            className={s.linkButton}
+            onClick={() => setEarlier(toLocalInput(new Date(Date.now() - 30 * 60_000).toISOString()))}
+          >
+            Forgot to log? Earlier…
+          </button>
+        ) : (
+          <span className={s.earlier}>
+            <input
+              type="datetime-local"
+              aria-label="Log the next item at"
+              value={earlier}
+              max={toLocalInput(new Date().toISOString())}
+              onChange={(e) => setEarlier(e.target.value)}
+            />
+            <span className={s.presetSub}>then tap the item</span>
+            <button type="button" className={s.linkButton} onClick={() => setEarlier(null)}>
+              Cancel
+            </button>
+          </span>
+        )}
       </div>
     </section>
   );

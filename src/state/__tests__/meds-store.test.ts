@@ -78,6 +78,22 @@ describe("daily medicines in the store", () => {
     expect(todaysReminders(st().meds, st().medLogs, st().resourceEntries, Date.now())).toHaveLength(0);
   });
 
+  it("logging later: never in the future, and a fixed time keeps a linked medicine log in step", () => {
+    vi.setSystemTime(at(10));
+    const future = st().logResource("coffee", { at: at(12).toISOString() });
+    expect(future.at).toBe(at(10).toISOString());
+    const coffee = st().logResource("coffee", { at: at(8, 30).toISOString() });
+    expect(coffee.at).toBe(at(8, 30).toISOString());
+
+    const ritalin = st().addMed({ name: "Ritalin", presetId: "methylphenidate-ir", doses: [], days: { kind: "daily" }, remind: false });
+    const log = st().takeDose(ritalin.id, undefined, at(9).toISOString())!;
+    st().moveResource(log.entryId!, at(8, 45).toISOString());
+    expect(st().resourceEntries.find((e) => e.id === log.entryId)?.at).toBe(at(8, 45).toISOString());
+    expect(st().medLogs[0].at).toBe(at(8, 45).toISOString());
+    st().moveResource(log.entryId!, at(23).toISOString());
+    expect(st().medLogs[0].at).toBe(at(10).toISOString());
+  });
+
   it("medicines sync, export and import with everything else", () => {
     const med = addVitaminD();
     st().takeDose(med.id, "am");

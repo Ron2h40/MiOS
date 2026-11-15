@@ -4,6 +4,7 @@ import { useState } from "react";
 import { dayMark, describeMed, lastDays, type DailyMed, type DayMark } from "@/core";
 import { useMios } from "@/state/store";
 import { Button, Card, Empty } from "@/ui/primitives";
+import { fromLocalInput, toLocalInput } from "@/ui/format";
 import { useToast } from "@/ui/toast";
 import { MedDialog } from "./MedDialog";
 import s from "./meds.module.css";
@@ -87,7 +88,13 @@ function MedRow({ med, now, onEdit }: { med: DailyMed; now: number; onEdit?: () 
   const setMedPaused = useMios((st) => st.setMedPaused);
   const removeMed = useMios((st) => st.removeMed);
   const toast = useToast((t) => t.show);
+  const [earlier, setEarlier] = useState<string | null>(null);
   const days = lastDays(now, HISTORY_DAYS, startHour);
+  const logExtra = (at?: string) => {
+    const log = takeDose(med.id, undefined, at);
+    if (log) toast(`${med.name} logged.`, "info", { label: "Undo", onClick: () => undoMedLog(log.id) });
+    setEarlier(null);
+  };
   const marks = days.map((d) => ({ day: d, mark: dayMark(med, d, logs, entries, now, startHour) }));
   const scheduled = marks.filter((m) => m.mark.kind !== "off" && m.mark.kind !== "logged" && m.mark.kind !== "today");
   const full = scheduled.filter((m) => m.mark.kind === "all").length;
@@ -102,14 +109,11 @@ function MedRow({ med, now, onEdit }: { med: DailyMed; now: number; onEdit?: () 
         </span>
         {!med.removedAt && (
           <span className={s.medActions}>
-            <Button
-              size="sm"
-              onClick={() => {
-                const log = takeDose(med.id);
-                if (log) toast(`${med.name} logged.`, "info", { label: "Undo", onClick: () => undoMedLog(log.id) });
-              }}
-            >
+            <Button size="sm" onClick={() => logExtra()}>
               {med.remind ? "Log an extra dose" : "Log a dose"}
+            </Button>
+            <Button size="sm" variant="plain" onClick={() => setEarlier(toLocalInput(new Date(Date.now() - 30 * 60_000).toISOString()))}>
+              Taken earlier…
             </Button>
             <Button size="sm" variant="plain" onClick={onEdit}>
               Edit
@@ -127,6 +131,23 @@ function MedRow({ med, now, onEdit }: { med: DailyMed; now: number; onEdit?: () 
           </span>
         )}
       </div>
+      {earlier !== null && (
+        <div className={s.noteActions}>
+          <input
+            type="datetime-local"
+            aria-label={`When you took ${med.name}`}
+            value={earlier}
+            max={toLocalInput(new Date().toISOString())}
+            onChange={(e) => setEarlier(e.target.value)}
+          />
+          <Button size="sm" variant="primary" disabled={!earlier} onClick={() => logExtra(fromLocalInput(earlier))}>
+            Save
+          </Button>
+          <Button size="sm" variant="plain" onClick={() => setEarlier(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
       <p className={s.meta}>{describeMed(med)}</p>
       <div className={s.grid} role="list" aria-label={`${med.name}, last ${HISTORY_DAYS} days`}>
         {marks.map(({ day, mark }) => {

@@ -230,6 +230,8 @@ interface Actions {
   dismissDose(medId: string, doseId: string): void;
   undoMedLog(logId: string): void;
   removeResource(entryId: string): void;
+  /** Fix the time of something logged (never later than now). */
+  moveResource(entryId: string, at: ISODateTime): void;
   /** C4: set or clear (null) an item's personal tolerance. */
   setTolerance(itemId: string, tolerance: Tolerance | null): void;
 
@@ -277,6 +279,12 @@ export type MiosStore = Data & Actions;
 
 const now = (): ISODateTime => new Date().toISOString();
 const uid = (): string => crypto.randomUUID();
+
+/** A logged time can't be in the future: effects that haven't happened yet would show on the charts. */
+const notLater = (at?: ISODateTime): ISODateTime => {
+  const t = at ? Date.parse(at) : NaN;
+  return Number.isFinite(t) && t < Date.now() ? new Date(t).toISOString() : now();
+};
 
 /** Working on one day of a repeat (steps, research) makes it that day's own, so the next day won't replace it. */
 const worked = (t: Task): Partial<Task> => (seriesKeyOf(t) ? { oneOff: true } : {});
@@ -730,7 +738,7 @@ export const useMios = create<MiosStore>()(
         },
 
         logResource(itemId, opts = {}) {
-          const entry: ResourceEntry = { id: uid(), itemId, at: opts.at ?? now(), ...(opts.hours !== undefined ? { hours: opts.hours } : {}) };
+          const entry: ResourceEntry = { id: uid(), itemId, at: notLater(opts.at), ...(opts.hours !== undefined ? { hours: opts.hours } : {}) };
           set((s) => ({
             resourceEntries: pruneEntries([...s.resourceEntries, entry], Date.now()).sort((a, b) => a.at.localeCompare(b.at)),
           }));
@@ -769,7 +777,7 @@ export const useMios = create<MiosStore>()(
           const med = get().meds.find((m) => m.id === medId);
           if (!med) return null;
           const startHour = get().settings.medDayStartHour ?? 0;
-          const takenAt = at ?? now();
+          const takenAt = notLater(at);
           // A reminder answers today's dose; an extra dose counts for the day it was taken.
           const day = medDayOf(doseId ? Date.now() : Date.parse(takenAt), startHour);
           const dose = doseId ? med.doses.find((d) => d.id === doseId) : undefined;
@@ -803,6 +811,15 @@ export const useMios = create<MiosStore>()(
           set((s) => ({
             medLogs: s.medLogs.filter((l) => l.id !== logId),
             resourceEntries: log.entryId ? s.resourceEntries.filter((e) => e.id !== log.entryId) : s.resourceEntries,
+          }));
+        },
+
+        moveResource(entryId, at) {
+          const when = notLater(at);
+          set((s) => ({
+            resourceEntries: s.resourceEntries.map((e) => (e.id === entryId ? { ...e, at: when } : e)).sort((a, b) => a.at.localeCompare(b.at)),
+            // A medicine logged from Daily medicines keeps its log in step.
+            medLogs: s.medLogs.map((l) => (l.entryId === entryId ? { ...l, at: when } : l)),
           }));
         },
 
