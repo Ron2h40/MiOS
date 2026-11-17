@@ -47,6 +47,7 @@ const PHASE_TEXT = {
   choose: "Waiting for your choice",
   saving: "Saving…",
   synced: "Synced",
+  partial: "Partly synced",
   error: "Sync stopped",
 } as const;
 
@@ -80,7 +81,7 @@ export function AccountButton() {
   }
 
   const initial = (account.name || account.email || "?").trim()[0]?.toUpperCase();
-  const warn = !account.verified || phase === "error";
+  const warn = !account.verified || phase === "error" || phase === "partial";
 
   return (
     <div className={s.wrap} ref={ref}>
@@ -114,10 +115,10 @@ function AccountMenu() {
       </div>
 
       {account.verified ? (
-        <p className={`${s.sync} ${phase === "error" ? s.syncError : ""}`}>
+        <p className={`${s.sync} ${phase === "error" || phase === "partial" ? s.syncError : ""}`}>
           {PHASE_TEXT[phase]}
           {phase === "synced" && lastSyncedAt ? ` · ${formatWhen(lastSyncedAt)}` : ""}
-          {phase === "error" && message ? `. ${message}` : ""}
+          {(phase === "error" || phase === "partial") && message ? `. ${message}` : ""}
           {phase === "error" && (
             <button type="button" className={s.link} onClick={retrySync}>
               Try again

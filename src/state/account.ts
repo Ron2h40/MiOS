@@ -5,7 +5,7 @@ import { confirmItsYou, deleteSignIn, watchAccount, type Account } from "@/integ
 import { firebaseConfigured } from "@/integrations/firebase/client";
 import { forgetGoogleToken } from "@/integrations/google/client";
 import { hashOf, reconcile, type Base } from "@/integrations/firebase/reconcile";
-import { deleteAll, listen, readAll, writeAll, type RemoteChange } from "@/integrations/firebase/remote";
+import { deleteAll, isDenied, listen, readAll, writeAll, type RemoteChange } from "@/integrations/firebase/remote";
 import { useAi } from "./ai";
 import { useMios, type MiosData } from "./store";
 import { AI_COLLECTIONS, MIOS_COLLECTIONS, SYNCED_COLLECTIONS, type AiData, type Collection } from "./syncCollections";
@@ -16,7 +16,8 @@ import { AI_COLLECTIONS, MIOS_COLLECTIONS, SYNCED_COLLECTIONS, type AiData, type
  * follows the person to every device. Signing out clears this browser.
  */
 
-export type SyncPhase = "off" | "starting" | "choose" | "synced" | "saving" | "error";
+/** "partial": syncing, but the server's rules refuse some kinds of data (see `message`). */
+export type SyncPhase = "off" | "starting" | "choose" | "synced" | "partial" | "saving" | "error";
 
 interface AccountState {
   /** "loading" until Firebase says who's signed in. */
@@ -97,6 +98,8 @@ interface Session {
   base: Map<string, Map<string, string>>;
   stops: (() => void)[];
   timer?: ReturnType<typeof setTimeout>;
+  /** Collections the security rules refuse: left alone, everything else keeps syncing. */
+  blocked: Set<string>;
   flushing: boolean;
   again: boolean;
   stopped: boolean;
@@ -126,6 +129,7 @@ const flush = async (s: Session): Promise<void> => {
     for (const side of SIDES) {
       const state = side.get();
       for (const c of side.collections) {
+        if (s.blocked.has(c.name)) continue;
         const local = c.read(state);
         const base = baseOf(s, c.name);
         const changes = new Map<string, string | null>();
@@ -134,7 +138,13 @@ const flush = async (s: Session): Promise<void> => {
         if (!changes.size) continue;
         if (!wrote) set({ phase: "saving" });
         wrote = true;
-        await writeAll(s.uid, c.name, changes);
+        try {
+          await writeAll(s.uid, c.name, changes);
+        } catch (e) {
+          if (!isDenied(e)) throw e;
+          s.blocked.add(c.name);
+          continue;
+        }
         if (s.stopped) return;
         for (const [id, v] of changes) {
           if (v === null) base.delete(id);
@@ -143,7 +153,7 @@ const flush = async (s: Session): Promise<void> => {
       }
     }
     if (wrote) saveBase(s.uid, s.base);
-    set({ phase: "synced", message: undefined, lastSyncedAt: new Date().toISOString() });
+    syncedState(s);
   } catch (e) {
     set({ phase: "error", message: syncMessage(e) });
   } finally {
@@ -190,15 +200,57 @@ const onRemote = (s: Session, side: Side<unknown>, c: Collection<unknown>, chang
 
 const counts = (data: MiosData) => data.tasks.length + data.archive.length;
 
+/** What each collection holds, in words, for "can't sync" messages. */
+const LABEL: Record<string, string> = {
+  tasks: "tasks",
+  events: "activity",
+  archive: "deleted tasks",
+  repeats: "repeating tasks",
+  resources: "resource logs",
+  wraps: "stats cards",
+  calendarSources: "calendars",
+  calendarEvents: "calendar items",
+  meds: "daily medicines",
+  medLogs: "medicine logs",
+  meta: "settings",
+  aiLog: "AI notes",
+  aiMeta: "AI questions",
+};
+
+/** Synced, or synced except for what the server's rules refuse. */
+const syncedState = (s: Session) => {
+  const at = new Date().toISOString();
+  if (!s.blocked.size) return set({ phase: "synced", message: undefined, lastSyncedAt: at });
+  const what = [...s.blocked].map((n) => LABEL[n] ?? n).join(", ");
+  set({
+    phase: "partial",
+    lastSyncedAt: at,
+    message: `Your ${what} can't sync: the server's rules don't allow it yet. They're kept in this browser; everything else syncs.`,
+  });
+};
+
 /** Start syncing an account: reconcile with the account, then keep both in step. */
 const start = async (uid: string): Promise<void> => {
   stop();
-  const s: Session = { uid, base: new Map(), stops: [], flushing: false, again: false, stopped: false };
+  const s: Session = { uid, base: new Map(), stops: [], blocked: new Set(), flushing: false, again: false, stopped: false };
   session = s;
   set({ phase: "starting", message: undefined, choice: undefined });
   try {
     const remote = new Map<string, Map<string, string>>();
-    for (const side of SIDES) for (const c of side.collections) remote.set(c.name, await readAll(uid, c.name));
+    let firstRefusal: unknown;
+    for (const side of SIDES) {
+      for (const c of side.collections) {
+        try {
+          remote.set(c.name, await readAll(uid, c.name));
+        } catch (e) {
+          if (!isDenied(e)) throw e;
+          s.blocked.add(c.name);
+          firstRefusal ??= e;
+        }
+      }
+    }
+    // Refused everywhere: the account itself isn't allowed (e.g. email not verified).
+    if (!remote.size && firstRefusal) throw firstRefusal;
     if (s.stopped) return;
 
     let base: Map<string, Map<string, string>> = loadBase(uid) ?? new Map();
@@ -223,19 +275,29 @@ const start = async (uid: string): Promise<void> => {
 
     for (const side of SIDES) {
       for (const c of side.collections) {
+        if (s.blocked.has(c.name)) continue;
         const plan = reconcile(c.read(side.get()), remote.get(c.name) ?? new Map(), (base.get(c.name) ?? new Map()) as Base, c.merge);
         if (plan.toLocal.size) side.set(c.apply(side.get(), plan.toLocal));
-        if (plan.toRemote.size) await writeAll(uid, c.name, plan.toRemote);
+        if (plan.toRemote.size) {
+          try {
+            await writeAll(uid, c.name, plan.toRemote);
+          } catch (e) {
+            if (!isDenied(e)) throw e;
+            s.blocked.add(c.name);
+            continue;
+          }
+        }
         if (s.stopped) return;
         s.base.set(c.name, plan.base);
       }
     }
     saveBase(uid, s.base);
-    set({ phase: "synced", lastSyncedAt: new Date().toISOString() });
+    syncedState(s);
 
     for (const side of SIDES) {
       s.stops.push(side.subscribe(() => schedule(s)));
       for (const c of side.collections) {
+        if (s.blocked.has(c.name)) continue;
         s.stops.push(
           listen(
             uid,
@@ -377,7 +439,11 @@ export const deleteAccount = async (password?: string): Promise<void> => {
 
 const syncMessage = (e: unknown): string => {
   const code = (e as { code?: string })?.code ?? "";
-  if (code === "permission-denied") return "Your account isn't allowed to sync yet. Verify your email, then try again.";
+  if (code === "permission-denied") {
+    return useAccount.getState().account?.verified
+      ? "The server refused to sync this account. Its security rules may be out of date."
+      : "Your account isn't allowed to sync yet. Verify your email, then try again.";
+  }
   if (code === "unavailable") return "No connection. Changes are saved here and sync when you're back online.";
   if (code === "resource-exhausted") return "The sync limit for today is used up. Changes are saved here and sync later.";
   return "Sync stopped. Your changes are saved in this browser.";

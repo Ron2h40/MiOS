@@ -47,13 +47,31 @@ export const writeAll = async (uid: string, name: string, changes: ReadonlyMap<s
   }
 };
 
-/** Delete every item in the given collections (used when an account is deleted). */
-export const deleteAll = async (uid: string, names: readonly string[]): Promise<void> => {
+export const isDenied = (e: unknown): boolean => (e as { code?: string })?.code === "permission-denied";
+
+/**
+ * Delete every item in the given collections (used when an account is
+ * deleted). A collection the security rules don't cover can't hold anything
+ * (writes there were refused too), so it's skipped, as long as the others
+ * prove this account can read its own data. If every one is refused, nothing
+ * is deleted and the error is thrown.
+ */
+export const deleteAll = async (uid: string, names: readonly string[]): Promise<string[]> => {
+  const skipped: string[] = [];
   for (const name of names) {
-    const snap = await getDocsFromServer(col(uid, name));
-    const ids = snap.docs.map((d) => idOfDoc(d.id));
-    if (ids.length) await writeAll(uid, name, new Map(ids.map((id) => [id, null])));
+    try {
+      const snap = await getDocsFromServer(col(uid, name));
+      const ids = snap.docs.map((d) => idOfDoc(d.id));
+      if (ids.length) await writeAll(uid, name, new Map(ids.map((id) => [id, null])));
+    } catch (e) {
+      if (!isDenied(e)) throw e;
+      skipped.push(name);
+    }
   }
+  if (names.length && skipped.length === names.length) {
+    throw Object.assign(new Error("Every collection was refused."), { code: "permission-denied" });
+  }
+  return skipped;
 };
 
 export interface RemoteChange {

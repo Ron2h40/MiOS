@@ -48,7 +48,9 @@ function DeleteAccountDialog({ onClose }: { onClose: () => void }) {
       setError(
         code.startsWith("auth/")
           ? authMessage(e)
-          : "Couldn't finish deleting. Check your connection and try again; your account is still there.",
+          : code === "permission-denied"
+            ? "The server refused to delete your synced data, so nothing was deleted. Its security rules may be out of date."
+            : "Couldn't finish deleting. Check your connection and try again; your account is still there.",
       );
     } finally {
       setBusy(false);
