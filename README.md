@@ -2,7 +2,6 @@
 
 **An operating system for your brain.** MiOS borrows how a computer OS manages tasks, resources and priority (process states, a scheduler, interrupts, deadlock detection) and turns those rules into daily thinking practice. AI helps at first, then steps back as you get stronger.
 
-
 ## Quick start
 
 ```bash
