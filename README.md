@@ -1,125 +1,114 @@
 # MiOS
 
-**An operating system for your brain.** MiOS borrows how a computer OS manages tasks, resources and priority (process states, a scheduler, interrupts, deadlock detection) and turns those rules into daily thinking practice. AI helps at first, then steps back as you get stronger.
+A task manager that works like an operating system, and an AI assistant that gives you less help as you get better at planning on your own.
 
-## Quick start
+Live demo: https://mios-three.vercel.app
+
+## Features
+
+- Tasks move through Ready, Running, Blocked and Done, like processes in an OS
+- Manual or priority-based scheduling, interrupt previews, and deadlock detection for tasks that block each other
+- A focus view that shows one task at a time
+- Time-guess practice: guess how long a task takes, then see how close you were
+- An AI assistant (Google Gemini) with three levels: it helps a lot at first, then asks you to think first, then switches off
+- Focus, Energy and Hydration charts that change with what you eat, drink, sleep and take
+- Daily medicine reminders with a 30-day log
+- Daily streaks and weekly and monthly stats cards
+- `.ics` import and export, and two-way Google Calendar sync
+- Works without an account; sign in with Google or email to sync across devices
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org) (App Router), React 19, TypeScript
+- [Zustand](https://github.com/pmndrs/zustand) for state, saved to localStorage
+- CSS Modules
+- [Google Gemini API](https://ai.google.dev) for the AI features
+- [Firebase](https://firebase.google.com) Auth and Firestore for accounts and sync
+- [ical.js](https://github.com/kewisch/ical.js) and the Google Calendar API
+- [Vitest](https://vitest.dev) for tests
+
+## Getting started
+
+You need Node.js 22 or newer.
 
 ```bash
+git clone https://github.com/Ron2h40/MiOS.git
+cd MiOS
 npm install
-cp .env.example .env.local   # then add your free Gemini API key (optional)
-npm run dev        # http://localhost:3000
-npm test           # unit tests for the OS core and AI helpers
-npm run typecheck
-npm run lint
-npm run build
+cp .env.example .env.local
+npm run dev
 ```
 
-On first launch, click **Load example tasks** to see a deadlock, a starved task and the cross-mode load.
+Open http://localhost:3000. Click **Load example tasks** on the first screen to see the app with sample data.
 
-Without `GEMINI_API_KEY`, every AI feature still works using demo answers, labeled "Demo AI" in the app. Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
+Every setting in `.env.local` is optional. Without a Gemini key, the AI features return demo answers.
 
-### Google Calendar sync (optional)
+### Scripts
 
-1. In [Google Cloud Console](https://console.cloud.google.com), create a project and enable the **Google Calendar API**.
-2. Under **Google Auth Platform**: set the app name and contact email, choose **External**, leave it in **Testing**, and add your Google account as a test user.
-3. Create an OAuth client of type **Web application** with `http://localhost:3000` as an authorized JavaScript origin. No redirect URI or client secret is needed.
-4. Put the client ID in `.env.local` as `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, then open **Calendar → Google Calendar → Connect**.
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Build for production |
+| `npm start` | Run the production build |
+| `npm test` | Run the tests |
+| `npm run typecheck` | Check types |
+| `npm run lint` | Lint the code |
 
-While the app is in Testing, Google shows an "unverified app" screen, allows up to 100 test users, and asks for approval again every 7 days. The Calendar card is labelled **Invite-only beta** and explains this; set `NEXT_PUBLIC_GOOGLE_CALENDAR_OPEN=1` (and redeploy) once Google has verified the app.
+## Configuration
 
-### Accounts and sync (optional)
+Settings go in `.env.local`. See [`.env.example`](.env.example) for the full list.
 
-Without these values MiOS runs as a guest-only app, with everything in the browser.
+| Variable | Used for |
+| --- | --- |
+| `GEMINI_API_KEY` | AI features. Get a free key at [Google AI Studio](https://aistudio.google.com/apikey). Server only |
+| `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL` | Override the default Gemini models |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google Calendar sync |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_APP_ID` | Accounts and sync |
+| `NEXT_PUBLIC_GUEST_AI` | `real` (default) or `demo` for people who aren't signed in |
+| `NEXT_PUBLIC_GOOGLE_CALENDAR_OPEN` | Set to `1` once Google has verified the app's calendar access |
+| `NEXT_PUBLIC_FEEDBACK_URL` | Link for the Feedback button |
 
-1. In the [Firebase console](https://console.firebase.google.com), add Firebase to your Google Cloud project (the same one as Calendar and Gemini keeps everything in one place).
-2. **Authentication → Sign-in method:** enable **Google** and **Email/Password** (leave the email-link option off).
-3. **Firestore Database → Create database:** Standard edition, production mode.
-4. **Firestore Database → Rules:** paste [`firestore.rules`](firestore.rules) and click **Publish**. Until then, sync fails with "isn't allowed to sync".
-5. **Project settings → Your apps → Web:** register an app and copy `apiKey`, `authDomain`, `projectId` and `appId` into `.env.local` as the four `NEXT_PUBLIC_FIREBASE_*` values. They're public by design; the rules protect the data.
-6. Restart `npm run dev`. A **Sign in** button appears in the header.
+### Google Calendar
 
-`NEXT_PUBLIC_GUEST_AI=demo` gives guests demo AI answers instead of real Gemini (the default is `real` for now).
+1. In [Google Cloud Console](https://console.cloud.google.com), enable the Google Calendar API.
+2. Under Google Auth Platform, set up the consent screen as External and add yourself as a test user.
+3. Create an OAuth client of type Web application, with `http://localhost:3000` as an authorized JavaScript origin.
+4. Put the client ID in `NEXT_PUBLIC_GOOGLE_CLIENT_ID`.
 
-### Deploying to Vercel
+While the app is in testing mode, only test users can connect, and Google asks them to approve again every 7 days.
 
-1. Sign in to [vercel.com](https://vercel.com) with GitHub, click **Add New → Project**, and import this repository. Vercel detects Next.js; keep the defaults.
-2. Before the first deploy, open **Environment Variables** and add the same values as `.env.local`: `GEMINI_API_KEY` (mark it Sensitive), `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, and the four `NEXT_PUBLIC_FIREBASE_*` values. Optional: `GEMINI_MODEL`, `NEXT_PUBLIC_GUEST_AI`.
-3. Deploy. The site gets an address like `https://mios-xyz.vercel.app`. Every push to `master` deploys again.
-4. **Firebase console → Authentication → Settings → Authorized domains:** add that address (without `https://`), or sign-in fails with "isn't allowed from this address".
-5. **Google Cloud Console → Google Auth Platform → Clients → the Calendar web client:** add `https://<your address>` under Authorized JavaScript origins, so Google Calendar sync works there.
-6. Changing an environment variable later needs a redeploy (Deployments → ⋯ → Redeploy), since `NEXT_PUBLIC_*` values are built into the page.
+### Firebase
 
-Two things to know on a public address: guests get real AI (see `NEXT_PUBLIC_GUEST_AI`) and the daily AI counts live in each server's memory, so keep the address private, or set `NEXT_PUBLIC_GUEST_AI=demo`, until the counts move to a database.
+1. In the [Firebase console](https://console.firebase.google.com), create a project or add Firebase to your Google Cloud project.
+2. Enable the Google and Email/Password sign-in methods.
+3. Create a Firestore database in production mode.
+4. Publish the rules from [`firestore.rules`](firestore.rules).
+5. Register a web app and copy its config into the four `NEXT_PUBLIC_FIREBASE_*` variables.
 
-## Stack
+The Firebase web config is public by design. The security rules are what protect the data.
 
-| Layer | Choice | Why |
-| --- | --- | --- |
-| Framework | Next.js 16 (App Router) + React 19 + TypeScript (strict) | Server route handlers for the Gemini proxy without a separate backend |
-| State | Zustand + `persist` (localStorage, versioned schema) | Small, testable, no boilerplate; storage can later move to a server without touching the UI |
-| Styling | CSS Modules + design tokens in `globals.css` | Styling stays separate from logic, so a redesign is a restyle, not a rewrite |
-| AI | Google Gemini `gemini-3.1-flash-lite` via REST, behind a Next.js route | Cheapest stable model with a free tier (checked Nov 2026); the key never reaches the browser. When Google says it is overloaded (500/503), MiOS retries once, then uses `gemini-3.5-flash-lite` for that request |
-| Calendar | `ical.js` for .ics; Google Calendar API v3 with Google Identity Services (token model) | Time zones and repeat rules handled by a proven parser; Google sync runs in the browser with no server and no client secret |
-| Accounts | Firebase Auth (Google, email and password) + Firestore | Optional sign-in; data syncs per item with a three-way merge; the server checks sign-in tokens with `jose` and needs no secret |
-| Tests | Vitest | Fast unit tests for the pure domain core and AI helpers |
+## Deploying
 
-## Architecture
+The app runs on [Vercel](https://vercel.com) with the default Next.js settings.
+
+1. Import the repository in Vercel.
+2. Add the same environment variables as in `.env.local`.
+3. Deploy.
+4. Add the new domain to Firebase (Authentication → Settings → Authorized domains) and to the OAuth client's JavaScript origins.
+
+`NEXT_PUBLIC_*` values are built into the page, so redeploy after changing them.
+
+## Project structure
 
 ```
 src/
-├── core/            Pure TypeScript domain. No React, no Next.js, no AI.
-│   ├── types.ts       Task, ProcessState, Stage, Settings …
-│   ├── process.ts     A1 process states + A6 running cap
-│   ├── scheduler.ts   A2 queue ordering and finish-time projection
-│   ├── interrupts.ts  A3 "what would this push back?"
-│   ├── deadlock.ts    A4 dependency graph, Tarjan SCC cycle detection
-│   ├── starvation.ts  A5 waiting-too-long flag
-│   ├── referee.ts     A6 protected time blocks (overnight, weekdays) and busy calendar time
-│   ├── timeGuess.ts   A9 estimate vs actual accuracy
-│   ├── modes.ts       Mode registry + A8 cross-mode load ("glue")
-│   ├── stages.ts      Assistant stage policy + progress gate (auto stage-up)
-│   ├── events.ts      Metrics event log types
-│   ├── resources.ts   C1/C4/C5 effect curves, levels, day series, task cost
-│   ├── resourcePresets.ts  C3 presets; medicine facts with FDA label sources
-│   ├── rewards.ts     D2/D5/D6 streak with freezes, period stats, records, when a drop is due
-│   ├── wrap.ts        D1/D3/D4 stats-drop cards with compliments built from real numbers
-│   ├── calendar.ts    E shared calendar: duplicate-proof merging, check-in status, busy time
-│   ├── repeats.ts     Repeating tasks: patterns, exact times, one task per day
-│   ├── agenda.ts      What's on each day, for every calendar view
-│   ├── history.ts     Past tasks, filters, and the 30-day archive for deleted and replaced tasks
-│   └── __tests__/
-├── ai/              AI assistant logic shared by browser and server. No React.
-│   ├── types.ts       Request/response types per feature, pop-up question shape
-│   ├── prompts.ts     Prompt + JSON-schema builders (stage-aware)
-│   ├── validate.ts    Checks every model answer before the app uses it
-│   ├── popup.ts       Teen pop-ups: history cleared at 30, random formats, shuffle
-│   ├── backgroundLog.ts  B8 triggers and event descriptions
-│   ├── mock.ts        Demo answers when no API key is set
-│   └── server/gemini.ts  Server-only Gemini client
-├── integrations/    Outside formats and services. No React.
-│   ├── ics.ts         E1 .ics reader (ical.js: time zones, repeats) and writer (RFC 5545)
-│   └── google/        E2 mapping.ts (pure sync rules) and client.ts (sign-in, Calendar API)
-├── state/           Zustand stores: wire core rules to persistence + event log
-│   ├── store.ts       All mutations; every user decision is logged as an event
-│   ├── ai.ts          AI calls, background analysis log, pop-up stock and history
-│   ├── google.ts      E2 sync run: MiOS calendar, pull changes, push tasks, read main calendar
-│   └── hooks.ts       Derived read-side hooks (useStage, useGate, useDeadlocks …)
-├── features/        Screens, one folder per feature (tasks, ai, calendar, focus, progress, resources, rewards, settings, shell)
-├── ui/              Presentational primitives (Button, Card, Dialog, pills, toast)
-└── app/             Next.js routes only, thin wrappers around feature screens
-    ├── (os)/          Routes inside the app shell: /m/[mode], /calendar, /resources, /progress, /history, /settings, /privacy
-    ├── api/ai/        POST /api/ai: the single server entry point for AI
-    └── focus/         A7 focus view, outside the shell so everything else is hidden
+├── core/           Task rules, scheduler, deadlocks, stages, resources, rewards, calendar (plain TypeScript)
+├── ai/             Prompts, response validation, demo answers, Gemini client
+├── integrations/   .ics files, Google Calendar, Firebase
+├── state/          Zustand stores and sync
+├── features/       Screens, one folder per feature
+├── ui/             Shared components
+└── app/            Next.js routes and the /api/ai route
 ```
 
-Dependencies point one way: `app → features → state → core`. The core never imports from the layers above it, which is how "the core runs without AI" is enforced structurally.
-
-### Key design decisions
-
-- **One place for stage rules.** `STAGE_POLICY` in `core/stages.ts` says what each stage allows (AI active, AI button, pop-up first). Every AI feature reads the stage through `useStage()`.
-- **Progress gate as data.** Thresholds live in the `GATES` table, so tuning with beta data is a one-line change. The evaluator only counts events logged at the current stage since the user last entered it, which implements the stage-back rule. All-time stats are computed from the full log and never reset.
-- **Metrics from day one.** Task completions (with on-time and own-choice flags), decisions with or without AI, interrupt choices, deadlock breaks, referee overrides and stage changes are all appended to an event log. The log feeds the gate now and the success metrics later.
-- **MiOS never decides for the user.** Sorting by priority is a button the user presses. Interrupts show a preview and wait for a choice. Deadlocks are shown, and the user picks which link to break.
-- **Blocked tasks wake up.** When every blocker clears, the task moves back to Ready, the way an OS wakes a waiting process.
-- **AI is a layer, not a dependency.** `src/core` never imports AI. All AI calls go through one server route, which also refuses AI at adult stage. Every model answer is validated, and invented task ids or malformed times are dropped.
-- **One door for AI help.** `AiHelpButton` applies the stage rules for every feature: direct at child stage, a pop-up question first at teen, hidden at adult.
+`src/core` doesn't depend on React, Next.js or the AI code, so all the task logic runs and is tested on its own. Every AI request goes through `/api/ai`, which keeps the API key on the server and checks each model response before the app uses it.
