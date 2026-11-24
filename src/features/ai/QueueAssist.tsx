@@ -145,7 +145,10 @@ export function QueueAssist({ queue }: { queue: Task[] }) {
       >
         {plan.state === "done" && (
           <>
-            <p className={s.lead}>Edit any time before you use it. Slots in protected time or in the past are skipped.</p>
+            <p className={s.lead}>
+              Edit any time before you use it. Using it sets these start times and puts your queue in this order. Slots in
+              protected time or in the past are skipped.
+            </p>
             <ol className={s.list}>
               {plan.result.slots.map((x) => {
                 const problem = slotProblem(x.taskId, times[x.taskId] ?? "");

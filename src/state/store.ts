@@ -608,6 +608,13 @@ export const useMios = create<MiosStore>()(
                 : t,
             ),
           }));
+          // The queue follows the schedule: earliest start first, in the same
+          // slots as before, so tasks outside the schedule don't move.
+          const scheduled = get()
+            .tasks.filter((t) => byTask.has(t.id) && t.state === "ready")
+            .sort((a, b) => Date.parse(byTask.get(a.id)!) - Date.parse(byTask.get(b.id)!));
+          const slots = scheduled.map((t) => t.order).sort((a, b) => a - b);
+          if (scheduled.length > 1) applyOrder(new Map(scheduled.map((t, i) => [t.id, slots[i]])), outcome === "accepted");
           pushEvents(
             { type: "ai_suggestion", feature: "schedule", outcome },
             { type: "decision_made", usedAi: true, feature: "schedule" },
