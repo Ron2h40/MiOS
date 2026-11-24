@@ -115,7 +115,7 @@ describe("blocked days", () => {
 
   it("blocked by another task that finishes overnight: wakes and is kept", () => {
     const d0 = daily("Send report", iso(0, 16));
-    const data = st().addTask({ title: "Get numbers", mode: "job-hunt", priority: 2 });
+    const data = st().addTask({ title: "Get numbers", mode: "work", priority: 2 });
     st().addBlocker(d0.id, { kind: "task", taskId: data.id });
     openAt(1, 7);
     st().setTaskState(data.id, "done");
@@ -180,7 +180,7 @@ describe("untouched and overnight days", () => {
       sourceId: "x",
     });
     st().importCalendar({ fileName: "work.ics", events: [ev(0), ev(1), ev(2)] });
-    st().sortCalendarItems([{ eventKey: "shift|0", choice: "task", scope: "series", mode: "job-hunt", timing: "both" }]);
+    st().sortCalendarItems([{ eventKey: "shift|0", choice: "task", scope: "series", mode: "work", timing: "both" }]);
     const d0 = st().tasks[0];
     clock(0, 22);
     st().setTaskState(d0.id, "running");

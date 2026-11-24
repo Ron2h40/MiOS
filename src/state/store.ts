@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { GoogleLink } from "@/integrations/google/mapping";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
+  migrateModeIds,
   autoTasksToday,
   decisionKey,
   dueOccurrences,
@@ -72,7 +73,8 @@ import {
  */
 
 export const STORAGE_KEY = "mios:v1";
-const SCHEMA_VERSION = 1;
+/** 2: Job hunt mode became Work (`job-hunt` → `work`). */
+const SCHEMA_VERSION = 2;
 
 export interface NewTaskInput {
   title: string;
@@ -711,7 +713,7 @@ export const useMios = create<MiosStore>()(
 
         importData(json) {
           try {
-            const parsed = JSON.parse(json) as Partial<Data> & { version?: number };
+            const parsed = migrateModeIds(JSON.parse(json)) as Partial<Data> & { version?: number };
             if (!Array.isArray(parsed.tasks) || !Array.isArray(parsed.events) || !parsed.settings) {
               return err("That file isn't a MiOS export.");
             }
@@ -1119,7 +1121,7 @@ export const useMios = create<MiosStore>()(
         medLogs,
       }),
       // Bump SCHEMA_VERSION and migrate here when the stored shape changes.
-      migrate: (persisted) => persisted as Data,
+      migrate: (persisted) => migrateModeIds(persisted) as Data,
     },
   ),
 );

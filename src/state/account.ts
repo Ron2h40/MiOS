@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { migrateModeIds } from "@/core";
 import { confirmItsYou, deleteSignIn, watchAccount, type Account } from "@/integrations/firebase/auth";
 import { firebaseConfigured } from "@/integrations/firebase/client";
 import { forgetGoogleToken } from "@/integrations/google/client";
@@ -76,7 +77,8 @@ interface Side<S> {
 const MIOS: Side<MiosData> = {
   collections: MIOS_COLLECTIONS,
   get: () => useMios.getState(),
-  set: (patch) => useMios.setState(patch),
+  // Items saved by an older version may still use a renamed mode id.
+  set: (patch) => useMios.setState(migrateModeIds(patch)),
   subscribe: (fn) => useMios.subscribe(fn),
 };
 

@@ -17,7 +17,7 @@ import { makeTask } from "./fixtures";
 const local = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m).toISOString();
 const at = (d: number, h = 8) => new Date(2026, 10, d, h).getTime();
 
-const first = makeTask({ title: "Standup", mode: "job-hunt", priority: 2, scheduledStart: local(9, 9), deadline: local(9, 17), estimateMinutes: 15 });
+const first = makeTask({ title: "Standup", mode: "work", priority: 2, scheduledStart: local(9, 9), deadline: local(9, 17), estimateMinutes: 15 });
 
 describe("repeat patterns", () => {
   it("never repeats on or before the first task's own day", () => {
@@ -48,7 +48,7 @@ describe("repeat patterns", () => {
   it("times repeat exactly: same clock start, same distance to the deadline", () => {
     const s = makeSeries(first, { kind: "daily" }, { id: "s", now: at(9) });
     const o = occurrenceOn(s, "2026-11-12");
-    expect(o).toMatchObject({ title: "Standup", mode: "job-hunt", priority: 2, scheduledStart: local(12, 9), deadline: local(12, 17) });
+    expect(o).toMatchObject({ title: "Standup", mode: "work", priority: 2, scheduledStart: local(12, 9), deadline: local(12, 17) });
     // The time guess is never copied: each day is guessed fresh (A9).
     expect("estimateMinutes" in o).toBe(false);
   });

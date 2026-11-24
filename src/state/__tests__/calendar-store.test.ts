@@ -46,12 +46,12 @@ describe("calendar in the store", () => {
   });
 
   it("an added item becomes a normal task, logged like any other; answering twice never doubles it", () => {
-    const answer = { eventKey: "shift", choice: "task" as const, scope: "once" as const, mode: "job-hunt" as const };
+    const answer = { eventKey: "shift", choice: "task" as const, scope: "once" as const, mode: "work" as const };
     expect(useMios.getState().sortCalendarItems([answer]).added).toBe(1);
     expect(useMios.getState().sortCalendarItems([answer]).added).toBe(0);
     const s = useMios.getState();
     expect(s.tasks).toHaveLength(1);
-    expect(s.tasks[0]).toMatchObject({ title: "Work shift", mode: "job-hunt", priority: 3, state: "ready", scheduledStart: today(12) });
+    expect(s.tasks[0]).toMatchObject({ title: "Work shift", mode: "work", priority: 3, state: "ready", scheduledStart: today(12) });
     expect(s.tasks[0].estimateMinutes).toBeUndefined(); // the time guess stays the user's (A9)
     expect(s.events.filter((e) => e.type === "task_created")).toHaveLength(1);
   });
@@ -70,7 +70,7 @@ describe("calendar in the store", () => {
         eventKey: "shift",
         choice: "task",
         scope: "once",
-        mode: "job-hunt",
+        mode: "work",
         details: { title: "Shift at the café", priority: 1, scheduledStart: today(12), estimateMinutes: 240, deadline: today(17) },
       },
     ]);
@@ -80,7 +80,7 @@ describe("calendar in the store", () => {
       estimateMinutes: 240,
       deadline: today(17),
       scheduledStart: today(12),
-      mode: "job-hunt",
+      mode: "work",
     });
   });
 

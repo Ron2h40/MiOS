@@ -16,7 +16,7 @@ export interface ModeDefinition {
 }
 
 export const TASK_MODES: readonly (ModeDefinition & { id: TaskModeId })[] = [
-  { id: "job-hunt", label: "Job hunt", blurb: "Applications, follow-ups and prep.", icon: "💼" },
+  { id: "work", label: "Work", blurb: "Work, school and projects.", icon: "💼" },
   { id: "daily-life", label: "Daily life", blurb: "Errands, health and people.", icon: "☀️" },
   { id: "chores", label: "Chores", blurb: "Home upkeep and repeat jobs.", icon: "🧺" },
 ];
@@ -31,6 +31,38 @@ export const GENERAL_MODE: ModeDefinition = {
 export const ALL_MODES: readonly ModeDefinition[] = [GENERAL_MODE, ...TASK_MODES];
 
 export const isModeId = (value: string): value is ModeId => ALL_MODES.some((m) => m.id === value);
+
+/** Modes that were renamed: old id → current id. Job hunt became Work. */
+export const RENAMED_MODES: Readonly<Record<string, TaskModeId>> = { "job-hunt": "work" };
+
+/**
+ * Data saved before a mode was renamed still says the old id, in this browser,
+ * in exported files and in the account. Every `mode` field anywhere in it is
+ * moved to the new id. Unchanged parts keep their identity, so nothing that
+ * didn't change looks edited.
+ */
+export const migrateModeIds = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    let changed = false;
+    const out = value.map((v) => {
+      const m = migrateModeIds(v);
+      if (m !== v) changed = true;
+      return m;
+    });
+    return (changed ? out : value) as T;
+  }
+  if (value && typeof value === "object") {
+    let changed = false;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      const m = k === "mode" && typeof v === "string" && v in RENAMED_MODES ? RENAMED_MODES[v] : migrateModeIds(v);
+      if (m !== v) changed = true;
+      out[k] = m;
+    }
+    return (changed ? out : value) as T;
+  }
+  return value;
+};
 
 export const getMode = (id: ModeId): ModeDefinition => ALL_MODES.find((m) => m.id === id) ?? GENERAL_MODE;
 

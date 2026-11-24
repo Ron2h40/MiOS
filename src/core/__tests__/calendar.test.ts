@@ -58,7 +58,7 @@ describe("sorting and busy time", () => {
   });
 
   it("'always add' series make today's task automatically, once", () => {
-    const d = { [decisionKey.series(lecture)]: { choice: "task" as const, mode: "job-hunt" as const, at: NOW } };
+    const d = { [decisionKey.series(lecture)]: { choice: "task" as const, mode: "work" as const, at: NOW } };
     expect(autoTasksToday(events, d, [], now).map((e) => e.key)).toEqual(["lec|1"]);
     const made = makeTask({ source: { kind: "calendar", eventKey: "lec|1", uid: "lec" } });
     expect(autoTasksToday(events, d, [made], now)).toEqual([]);

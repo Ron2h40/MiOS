@@ -5,7 +5,11 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   agentRules: false,
   async redirects() {
-    return [{ source: "/", destination: "/m/general", permanent: false }];
+    return [
+      { source: "/", destination: "/m/general", permanent: false },
+      // Job hunt mode became Work.
+      { source: "/m/job-hunt", destination: "/m/work", permanent: true },
+    ];
   },
 };
 

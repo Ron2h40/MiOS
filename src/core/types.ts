@@ -18,7 +18,7 @@ export const PROCESS_STATES: readonly ProcessState[] = ["ready", "running", "blo
 export type Priority = 1 | 2 | 3 | 4;
 
 /** Concrete life areas a task can belong to. "general" is a view, not a home for tasks. */
-export type TaskModeId = "job-hunt" | "daily-life" | "chores";
+export type TaskModeId = "work" | "daily-life" | "chores";
 export type ModeId = TaskModeId | "general";
 
 /** A4: what a task can be blocked by. */

@@ -88,11 +88,11 @@ describe("new task sources feed the same event log", () => {
 
   it("a repeating task: the guess you typed counts; copies never pretend to be guesses", () => {
     const t = st().addRepeatingTask(
-      { title: "Inbox zero", mode: "job-hunt", priority: 3, scheduledStart: today(8), estimateMinutes: 20 },
+      { title: "Inbox zero", mode: "work", priority: 3, scheduledStart: today(8), estimateMinutes: 20 },
       { kind: "daily" },
     );
     expect(types(st().events)).toEqual(["task_created", "time_guess"]);
-    expect(st().repeats[0].template).toEqual({ title: "Inbox zero", mode: "job-hunt", priority: 3 });
+    expect(st().repeats[0].template).toEqual({ title: "Inbox zero", mode: "work", priority: 3 });
     finish(t.id);
     expect(st().events.some((e) => e.type === "task_completed" && e.taskId === t.id)).toBe(true);
     // Today already has its occurrence: running the daily job adds nothing and logs nothing.

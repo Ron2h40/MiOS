@@ -26,7 +26,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("history list and filters", () => {
   const now = at(3, 12).getTime(); // Thursday
-  const onTime = makeTask({ id: "a", title: "Send CV", mode: "job-hunt", state: "done", deadline: iso(2, 17), completedAt: iso(2, 9) });
+  const onTime = makeTask({ id: "a", title: "Send CV", mode: "work", state: "done", deadline: iso(2, 17), completedAt: iso(2, 9) });
   const late = makeTask({ id: "b", title: "Rent", state: "done", deadline: iso(1, 17), completedAt: iso(2, 9) });
   const free = makeTask({ id: "c", title: "Read", state: "done", completedAt: iso(-10, 9) });
   const overdue = makeTask({ id: "d", title: "Taxes", state: "ready", deadline: iso(1, 17) });
@@ -55,7 +55,7 @@ describe("history list and filters", () => {
   });
 
   it("mode, time range and search narrow any filter", () => {
-    expect(filterHistory(items, q({ mode: "job-hunt" }), now).map((i) => i.task.id)).toEqual(["a"]);
+    expect(filterHistory(items, q({ mode: "work" }), now).map((i) => i.task.id)).toEqual(["a"]);
     expect(filterHistory(items, q({ range: "week" }), now).map((i) => i.task.id)).toEqual(["g", "a", "b", "f", "d"]);
     expect(filterHistory(items, q({ search: "  rEn " }), now).map((i) => i.task.id)).toEqual(["b"]);
   });
