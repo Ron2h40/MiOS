@@ -217,16 +217,22 @@ const LABEL: Record<string, string> = {
   aiMeta: "AI questions",
 };
 
+/** "a", "a and b", "a, b and c". */
+const inWords = (items: readonly string[]): string =>
+  items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+/** What the account menu says when the server's rules refuse some kinds of data. */
+export const partialSyncMessage = (blocked: Iterable<string>): string => {
+  const names = [...blocked].map((n) => LABEL[n] ?? n);
+  const them = names.length === 1 && !names[0].endsWith("s") ? "it" : "them";
+  return `Your ${inWords(names)} can't sync: the server's rules don't allow ${them} yet. They're kept in this browser; everything else syncs.`;
+};
+
 /** Synced, or synced except for what the server's rules refuse. */
 const syncedState = (s: Session) => {
   const at = new Date().toISOString();
   if (!s.blocked.size) return set({ phase: "synced", message: undefined, lastSyncedAt: at });
-  const what = [...s.blocked].map((n) => LABEL[n] ?? n).join(", ");
-  set({
-    phase: "partial",
-    lastSyncedAt: at,
-    message: `Your ${what} can't sync: the server's rules don't allow it yet. They're kept in this browser; everything else syncs.`,
-  });
+  set({ phase: "partial", lastSyncedAt: at, message: partialSyncMessage(s.blocked) });
 };
 
 /** Start syncing an account: reconcile with the account, then keep both in step. */
