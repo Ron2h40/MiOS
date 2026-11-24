@@ -25,13 +25,32 @@ export class GeminiError extends Error {
 export const geminiConfigured = (): boolean => Boolean(process.env.GEMINI_API_KEY);
 
 /**
- * When the main model is overloaded (Google answers 500 or 503 "high
- * demand"), MiOS waits briefly and tries again, then asks this model instead.
+ * The backup model. When the main model is overloaded (Google answers 500 or
+ * 503 "high demand"), MiOS waits briefly and tries again, then asks this one.
+ * When the main model's free per-minute limit is used up (429), MiOS asks this
+ * one straight away: each model has its own free allowance.
  * Checked 2026-11-12: answering on the free tier while the main one was busy.
  */
 export const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 const busy = (res: Response) => res.status === 500 || res.status === 503;
+const limited = (res: Response) => res.status === 429;
+
+/** Ask the main model, retrying or switching to the backup when Google can't answer. */
+export const withFallback = async (
+  send: (model: string) => Promise<Response>,
+  main: string,
+  fallback: string,
+  pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
+): Promise<Response> => {
+  let res = await send(main);
+  if (limited(res)) return fallback === main ? res : send(fallback);
+  if (!busy(res)) return res;
+  await pause(800);
+  res = await send(main);
+  if (!busy(res) && !limited(res)) return res;
+  return fallback === main ? res : send(fallback);
+};
 
 const send = (body: unknown, model: string): Promise<Response> => {
   return fetch(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
@@ -43,16 +62,12 @@ const send = (body: unknown, model: string): Promise<Response> => {
   });
 };
 
-const request = async (body: unknown): Promise<Response> => {
-  const main = process.env.GEMINI_MODEL || DEFAULT_MODEL;
-  const fallback = process.env.GEMINI_FALLBACK_MODEL || FALLBACK_MODEL;
-  let res = await send(body, main);
-  if (!busy(res)) return res;
-  await new Promise((r) => setTimeout(r, 800));
-  res = await send(body, main);
-  if (!busy(res) || fallback === main) return res;
-  return send(body, fallback);
-};
+const request = (body: unknown): Promise<Response> =>
+  withFallback(
+    (model) => send(body, model),
+    process.env.GEMINI_MODEL || DEFAULT_MODEL,
+    process.env.GEMINI_FALLBACK_MODEL || FALLBACK_MODEL,
+  );
 
 export interface GroundedAnswer {
   text: string;
