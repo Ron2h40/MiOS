@@ -3,6 +3,7 @@ import type { MiosEvent } from "../events";
 import { PRESETS_BY_ID, RESOURCE_PRESETS } from "../resourcePresets";
 import {
   activeEffects,
+  chartTime,
   curveAt,
   daySeries,
   levelsAt,
@@ -115,5 +116,24 @@ describe("resource levels", () => {
     const s = daySeries(input([entry("coffee", T0)]), day, 60);
     expect(s).toHaveLength(25);
     expect(s[9].focus).toBe(20); // 9:00, one hour after the coffee
+  });
+});
+
+describe("chartTime", () => {
+  const clock = Date.parse("2026-11-23T10:00:00.000Z");
+  const at = (s: number) => new Date(clock + s * 1000).toISOString();
+  const logged = (s: number): ResourceEntry => ({ id: `e${s}`, itemId: "coffee", at: at(s) });
+  const started = (s: number): MiosEvent => ({ type: "task_state_changed", at: at(s), stage: "child", taskId: "t", from: "ready", to: "running" });
+
+  it("uses the clock when nothing newer happened", () => {
+    expect(chartTime(clock, [logged(-600)], [started(-300)])).toBe(clock);
+  });
+
+  it("moves to something logged after the clock last ticked", () => {
+    expect(chartTime(clock, [logged(-600), logged(40)], [])).toBe(clock + 40_000);
+  });
+
+  it("moves to a task started after the clock last ticked", () => {
+    expect(chartTime(clock, [], [started(25)])).toBe(clock + 25_000);
   });
 });

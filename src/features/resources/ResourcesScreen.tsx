@@ -36,7 +36,7 @@ export function ResourcesScreen() {
   const today = new Date(nowMs);
   today.setHours(0, 0, 0, 0);
   const dayStart = today.getTime() + offset * DAY_MS;
-  const { series } = useResources(now, dayStart);
+  const { series, at } = useResources(now, dayStart);
   const [showTable, setShowTable] = useState(false);
 
   const dayName =
@@ -73,7 +73,7 @@ export function ResourcesScreen() {
           >
             <div className={s.stack}>
               <ChartLegend />
-              <DayChart series={series} dayStart={dayStart} now={nowMs} />
+              <DayChart series={series} dayStart={dayStart} now={at} />
               <div className={s.toolbar}>
                 <Button size="sm" variant="plain" onClick={() => setShowTable((v) => !v)} aria-expanded={showTable}>
                   {showTable ? "Hide table" : "Show as table"}

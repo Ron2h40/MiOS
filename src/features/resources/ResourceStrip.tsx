@@ -22,20 +22,26 @@ const QUICK: Record<ResourceKey, string[]> = {
  */
 export function ResourceStrip() {
   const now = useNow(60_000);
-  const { levels, active } = useResources(now);
+  const { levels, active, at: nowMs } = useResources(now);
   const entries = useMios((st) => st.resourceEntries);
   const tolerances = useMios((st) => st.tolerances);
-  const nowMs = Date.parse(now);
-  /** The active item adding the most to a resource right now. */
+  /**
+   * The active item adding the most to a resource right now. Something just
+   * taken adds nothing yet (effects ramp up), so it's named as kicking in
+   * rather than leaving the tile at "Nothing active".
+   */
   const topFor = (k: ResourceKey) => {
     let best: { name: string; hoursLeft: number; amount: number } | null = null;
+    let starting: string | null = null;
     for (const a of active) {
+      if (!(a.item.effects[k] ?? 0)) continue;
       const tol = tolerances[a.item.id] ?? { strength: 1, duration: 1 };
       const amount =
         (a.item.effects[k] ?? 0) * tol.strength * curveAt(a.item.shape, (nowMs - Date.parse(a.entry.at)) / 3_600_000, tol.duration);
       if (amount > 0 && (!best || amount > best.amount)) best = { name: a.item.name, hoursLeft: a.hoursLeft, amount };
+      else if (amount <= 0 && !starting) starting = a.item.name;
     }
-    return best;
+    return best ?? (starting ? { name: starting, starting: true as const } : null);
   };
   const logResource = useMios((st) => st.logResource);
   const removeResource = useMios((st) => st.removeResource);
@@ -62,7 +68,11 @@ export function ResourceStrip() {
               <div className={s.barFill} style={{ width: `${levels[k]}%` }} />
             </div>
             <div className={s.tileNote}>
-              {top ? `Mostly ${top.name} · ${formatMinutes(top.hoursLeft * 60)} left` : "Nothing active"}
+              {!top
+                ? "Nothing active"
+                : "starting" in top
+                  ? `${top.name} · kicking in`
+                  : `Mostly ${top.name} · ${formatMinutes(top.hoursLeft * 60)} left`}
             </div>
             <div className={s.chips}>
               {QUICK[k].map((id) => {

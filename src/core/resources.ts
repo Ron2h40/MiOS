@@ -123,6 +123,19 @@ export interface Interval {
   end: number;
 }
 
+/**
+ * The time the charts should be drawn at. Screens refresh their clock once a
+ * minute, so something logged a few seconds after the last refresh would sit
+ * "in the future" and not show. Anything logged or started counts as now.
+ */
+export const chartTime = (clock: number, entries: readonly ResourceEntry[], events: readonly MiosEvent[]): number => {
+  let t = clock;
+  for (const e of entries) t = Math.max(t, Date.parse(e.at));
+  const last = events[events.length - 1];
+  if (last) t = Math.max(t, Date.parse(last.at));
+  return t;
+};
+
 /** When tasks were Running, rebuilt from the event log. Open intervals end at `now`. */
 export const runningIntervals = (events: readonly MiosEvent[], now: number): Interval[] => {
   const open = new Map<string, number>();

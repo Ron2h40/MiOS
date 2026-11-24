@@ -15,6 +15,7 @@ import {
   type Wrap,
   activeEffects,
   daySeries,
+  chartTime,
   levelsAt,
   PRESETS_BY_ID,
   runningIntervals,
@@ -115,10 +116,12 @@ export const useResources = (now: string, day?: number) => {
   const tolerances = useMios((s) => s.tolerances);
   const events = useMios((s) => s.events);
   return useMemo(() => {
-    const t = Date.parse(now);
+    const t = chartTime(Date.parse(now), entries, events);
     const input = { entries, items: PRESETS_BY_ID, tolerances, intervals: runningIntervals(events, t) };
     const dayStart = day ?? startOfDay(t);
     return {
+      /** The time the charts are drawn at: the clock, or the latest log if newer. */
+      at: t,
       levels: levelsAt(input, t),
       series: daySeries(input, dayStart, 10),
       active: activeEffects(input, t),
