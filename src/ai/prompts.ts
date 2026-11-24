@@ -16,6 +16,7 @@ const BASE_RULES = [
   "Write short plain sentences. No emoji. No em dashes.",
   "Facts over flattery: only praise something the data shows.",
   "No medical advice.",
+  "Name app features in plain words. Never write internal codes or IDs such as B4.",
   "Reply with only one JSON object that matches the schema.",
 ].join("\n");
 

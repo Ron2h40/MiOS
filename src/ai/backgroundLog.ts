@@ -48,6 +48,24 @@ const OWN_WORK = {
   review: "answered review questions",
 } as const;
 
+/**
+ * AI use is stored under short internal codes. The model, and through its
+ * notes the user, should only ever see plain names.
+ */
+const AI_USE_NAMES: Record<string, string> = {
+  B1: "priority help",
+  B2: "scheduling help",
+  B3: "interrupt warnings",
+  B4: "time estimates",
+  B5: "research help",
+  B6: "task breakdown",
+  B7: "task reviews",
+  B8: "the background review",
+};
+
+/** Swap any internal code left in older notes for its plain name. */
+export const plainNames = (text: string): string => text.replace(/\bB([1-8])\b/g, (code) => AI_USE_NAMES[code] ?? code);
+
 const FEATURE_WORDS: Record<string, string> = {
   order: "reordered the queue",
   priority: "changed a priority",
@@ -72,7 +90,7 @@ export const describeEvent = (e: MiosEvent, tasksById: ReadonlyMap<string, Task>
     case "blocker_added":
       return `${when} marked ${title(e.taskId)} as waiting on a ${e.kind}`;
     case "ai_used":
-      return `${when} used AI: ${e.feature}`;
+      return `${when} used AI for ${AI_USE_NAMES[e.feature] ?? e.feature}`;
     case "ai_suggestion":
       return `${when} ${e.outcome} the AI ${e.feature} suggestion`;
     case "popup_question":

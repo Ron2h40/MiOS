@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MiosEvent, Task } from "@/core";
-import { describeEvent, isB8Trigger } from "../backgroundLog";
+import { describeEvent, isB8Trigger, plainNames } from "../backgroundLog";
 import { mockResult } from "../mock";
 import { avoidList, isAnswered, pickFormats, POPUP_HISTORY_LIMIT, rememberQuestion, shuffled } from "../popup";
 import { buildPrompt } from "../prompts";
@@ -106,9 +106,26 @@ describe("background log (B8)", () => {
     const tasks = new Map([["t", { title: "Laundry" } as Task]]);
     expect(describeEvent(ev({ type: "time_guess", taskId: "t", minutes: 20 }), tasks)).toContain('guessed 20 min for "Laundry"');
   });
+
+  it("names AI features in plain words, never by internal code", () => {
+    const line = describeEvent(ev({ type: "ai_used", feature: "B4" }), new Map());
+    expect(line).toContain("used AI for time estimates");
+    expect(line).not.toMatch(/\bB\d\b/);
+  });
+
+  it("swaps codes left in older notes for plain names", () => {
+    expect(plainNames("Often uses AI for B4 before starting.")).toBe("Often uses AI for time estimates before starting.");
+    expect(plainNames("Asks B1 and B6 for help.")).toBe("Asks priority help and task breakdown for help.");
+    expect(plainNames("Plans in B-blocks")).toBe("Plans in B-blocks");
+  });
 });
 
 describe("prompts", () => {
+  it("tells the model never to write internal codes", () => {
+    const call = { kind: "estimate", context: { stage: "child", now: "2026-11-23T10:00:00.000Z", timeZone: "UTC", notes: [] } } as unknown as AiCall;
+    expect(buildPrompt({ ...call, payload: {} } as AiCall).system).toContain("Never write internal codes");
+  });
+
   it("adds the question-leaning rule only at teen stage", () => {
     const call = (stage: "child" | "teen"): AiCall<"priority"> => ({ kind: "priority", context: ctx(stage), payload: { tasks: [aiTask("a")] } });
     expect(buildPrompt(call("teen")).system).toContain("Lean toward questions");

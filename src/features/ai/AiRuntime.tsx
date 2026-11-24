@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { b8Active, B8_MAX_WAIT_MS, B8_QUIET_MS, describeEvent, isB8Trigger } from "@/ai/backgroundLog";
+import { b8Active, B8_MAX_WAIT_MS, B8_QUIET_MS, describeEvent, isB8Trigger, plainNames } from "@/ai/backgroundLog";
 import type { AiFeature } from "@/ai/types";
 import { medHabits, type MiosEvent } from "@/core";
 import { callAi, toAiTask, useAi } from "@/state/ai";
@@ -34,7 +34,7 @@ export function AiRuntime() {
         triggers: batch.map((e) => describeEvent(e, byId)),
         recentEvents: events.slice(-30).map((e) => describeEvent(e, byId)),
         tasks: tasks.filter((t) => t.state !== "done").slice(0, 30).map((t) => toAiTask(t, byId)),
-        previousSummary: useAi.getState().log[0]?.summary ?? "",
+        previousSummary: plainNames(useAi.getState().log[0]?.summary ?? ""),
         habits: medHabits(meds, medLogs, resourceEntries, Date.now(), settings.medDayStartHour ?? 0),
       });
       // Failures are dropped quietly; the next action tries again.

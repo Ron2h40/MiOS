@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { plainNames } from "@/ai/backgroundLog";
 import type { AiFeature, AiErrorCode } from "@/ai/types";
 import { AI_FEATURES } from "@/ai/types";
 import { useStage } from "@/state/hooks";
@@ -154,7 +155,7 @@ export function WhyButton({ why }: { why: string }) {
               <span className={s.whyLabel}>What MiOS has noticed about you</span>
               <ul className={s.notes}>
                 {notes.slice(0, 3).map((n) => (
-                  <li key={n}>{n}</li>
+                  <li key={n}>{plainNames(n)}</li>
                 ))}
               </ul>
             </>

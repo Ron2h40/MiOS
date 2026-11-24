@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { hasActiveBlockers, type Task } from "@/core";
-import { B8_LOG_LIMIT } from "@/ai/backgroundLog";
+import { B8_LOG_LIMIT, plainNames } from "@/ai/backgroundLog";
 import { avoidList, emptyByFeature, pickFormats, POPUP_STOCK_TARGET, rememberQuestion } from "@/ai/popup";
 import type {
   AiFeature,
@@ -76,7 +76,7 @@ const refilling = new Set<AiFeature>();
 /** Call the AI route with the shared context (stage, local time, learned notes). */
 export async function callAi<K extends AiKind>(kind: K, payload: AiRequestMap[K]): Promise<AiResponse<K>> {
   const stage = useMios.getState().settings.stage;
-  const notes = useAi.getState().log[0]?.notes ?? [];
+  const notes = (useAi.getState().log[0]?.notes ?? []).map(plainNames);
   const now = new Date();
   try {
     // Signed in: send the sign-in token, so the server counts this person's allowance.
