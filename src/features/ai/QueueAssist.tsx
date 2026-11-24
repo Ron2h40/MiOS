@@ -133,17 +133,26 @@ export function QueueAssist({ queue }: { queue: Task[] }) {
         why={plan.state === "done" ? plan.result.why : undefined}
         onClose={() => finishPlan(false)}
         actions={
-          <>
-            <Button size="sm" variant="primary" onClick={() => finishPlan(true)}>
-              Use this schedule
-            </Button>
+          plan.state === "done" && !plan.result.slots.length ? (
             <Button size="sm" onClick={() => finishPlan(false)}>
-              Keep my plan
+              OK
             </Button>
-          </>
+          ) : (
+            <>
+              <Button size="sm" variant="primary" onClick={() => finishPlan(true)}>
+                Use this schedule
+              </Button>
+              <Button size="sm" onClick={() => finishPlan(false)}>
+                Keep my plan
+              </Button>
+            </>
+          )
         }
       >
-        {plan.state === "done" && (
+        {plan.state === "done" && !plan.result.slots.length && (
+          <p className={s.lead}>Nothing fits in the time left today, so there&apos;s no schedule to suggest.</p>
+        )}
+        {plan.state === "done" && plan.result.slots.length > 0 && (
           <>
             <p className={s.lead}>
               Edit any time before you use it. Using it sets these start times and puts your queue in this order. Slots in

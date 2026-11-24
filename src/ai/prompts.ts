@@ -35,6 +35,16 @@ const contextBlock = (call: AiCall) =>
 
 const json = (v: unknown) => JSON.stringify(v);
 
+/** The user's local "HH:MM", so the model doesn't have to convert from UTC itself. */
+const localClock = (call: AiCall): string => {
+  const at = new Date(call.context.now);
+  try {
+    return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: call.context.timeZone }).format(at);
+  } catch {
+    return `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
+  }
+};
+
 const S = {
   str: { type: "string" },
   num: { type: "number" },
@@ -58,8 +68,8 @@ const builders: { [K in AiKind]: Builder<K> } = {
       why: S.str,
     }),
   }),
-  schedule: (p) => ({
-    user: `Draft today's schedule as start times (24-hour local "HH:MM") for these tasks, starting after now. Never place a task inside protected time. Leave short gaps. Skip a task rather than squeeze it in. Unknown durations take ${p.defaultEstimateMinutes} minutes.\nProtected time: ${json(p.protectedBlocks)}\nTasks: ${json(p.tasks)}`,
+  schedule: (p, call) => ({
+    user: `Draft today's schedule as start times (24-hour local "HH:MM") for these tasks. It is ${localClock(call)} local time now. Use only times after now and before midnight tonight, never tomorrow. Never place a task inside protected time. Leave short gaps. Skip a task rather than squeeze it in. If nothing fits, return an empty slots list and say why in one sentence. Unknown durations take ${p.defaultEstimateMinutes} minutes.\nProtected time: ${json(p.protectedBlocks)}\nTasks: ${json(p.tasks)}`,
     schema: S.obj({ slots: S.arr(S.obj({ taskId: S.str, start: S.str })), why: S.str }),
   }),
   interrupt: (p) => ({

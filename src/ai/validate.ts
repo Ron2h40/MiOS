@@ -46,16 +46,28 @@ export const parsePriority = (raw: unknown, taskIds: readonly string[]): Priorit
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** "9:05", "09:05" or "09:05:00" become "09:05"; anything else is left to fail the check. */
+const toHHMM = (v: unknown): string => {
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(str(v, 8));
+  return m ? `${m[1].padStart(2, "0")}:${m[2]}` : str(v, 8);
+};
+
 export const parseSchedule = (raw: unknown, taskIds: readonly string[]): ScheduleResult | null => {
   if (!isObj(raw)) return null;
   const known = new Set(taskIds);
   const seen = new Set<string>();
-  const slots = (Array.isArray(raw.slots) ? raw.slots : [])
+  if (!Array.isArray(raw.slots)) return null;
+  const slots = raw.slots
     .filter(isObj)
-    .map((s) => ({ taskId: str(s.taskId, 100), start: str(s.start, 5) }))
+    .map((s) => ({ taskId: str(s.taskId, 100), start: toHHMM(s.start) }))
     .filter((s) => known.has(s.taskId) && HHMM.test(s.start) && !seen.has(s.taskId) && seen.add(s.taskId));
-  if (!slots.length) return null;
-  return { slots, why: str(raw.why) || "Laid out around your protected time." };
+  // No slots at all is a real answer (nothing fits in what's left of today);
+  // slots that were all unusable are not.
+  if (!slots.length && raw.slots.length) return null;
+  return {
+    slots,
+    why: str(raw.why) || (slots.length ? "Laid out around your protected time." : "Nothing fits in the time left today."),
+  };
 };
 
 export const parseInterrupt = (raw: unknown): InterruptResult | null => {

@@ -68,6 +68,25 @@ describe("validating model output", () => {
     expect(r?.slots).toEqual([{ taskId: "a", start: "09:30" }]);
   });
 
+  it("accepts a schedule where nothing fits today", () => {
+    const r = parseSchedule({ slots: [], why: "Your sleep block starts soon." }, ["a"]);
+    expect(r).toEqual({ slots: [], why: "Your sleep block starts soon." });
+    expect(parseSchedule({ slots: [] }, ["a"])?.why).toBe("Nothing fits in the time left today.");
+  });
+
+  it("reads times written without a leading zero or with seconds", () => {
+    const r = parseSchedule({ slots: [{ taskId: "a", start: "9:05" }, { taskId: "b", start: "14:30:00" }] }, ["a", "b"]);
+    expect(r?.slots).toEqual([
+      { taskId: "a", start: "09:05" },
+      { taskId: "b", start: "14:30" },
+    ]);
+  });
+
+  it("still rejects a schedule whose slots are all unusable", () => {
+    expect(parseSchedule({ slots: [{ taskId: "x", start: "10:00" }] }, ["a"])).toBeNull();
+    expect(parseSchedule({ why: "no slots field" }, ["a"])).toBeNull();
+  });
+
   it("checks enums and ranges", () => {
     expect(parseInterrupt({ severity: "panic", warning: "x" })).toBeNull();
     expect(parseInterrupt({ severity: "low", warning: "Minor delay" })?.severity).toBe("low");
@@ -121,6 +140,18 @@ describe("background log (B8)", () => {
 });
 
 describe("prompts", () => {
+  it("gives the schedule draft the local time and keeps it to tonight", () => {
+    const call = {
+      kind: "schedule",
+      context: { stage: "child", now: "2026-11-24T06:24:00.000Z", timeZone: "America/Los_Angeles", notes: [] },
+      payload: { tasks: [], protectedBlocks: [], defaultEstimateMinutes: 30 },
+    } as unknown as AiCall;
+    const user = buildPrompt(call).user;
+    expect(user).toContain("It is 22:24 local time now.");
+    expect(user).toContain("before midnight tonight, never tomorrow");
+    expect(user).toContain("return an empty slots list");
+  });
+
   it("tells the model never to write internal codes", () => {
     const call = { kind: "estimate", context: { stage: "child", now: "2026-11-23T10:00:00.000Z", timeZone: "UTC", notes: [] } } as unknown as AiCall;
     expect(buildPrompt({ ...call, payload: {} } as AiCall).system).toContain("Never write internal codes");
