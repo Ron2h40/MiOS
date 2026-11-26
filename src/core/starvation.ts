@@ -11,8 +11,14 @@ export interface StarvationFlag {
   daysWaiting: number;
 }
 
-/** How long "Remind me in 3 days" hides a flag. */
-export const WAITING_SNOOZE_DAYS = 3;
+/** The lengths "Remind me in…" offers, in days. */
+export const WAITING_SNOOZE_CHOICES = [1, 3, 7] as const;
+export type WaitingSnoozeDays = (typeof WAITING_SNOOZE_CHOICES)[number];
+
+/** How long "Move to the top" rests a flag: the task is next anyway. */
+export const MOVE_TO_TOP_REST_DAYS = 3;
+
+export const snoozeLabel = (days: number): string => (days === 7 ? "1 week" : days === 1 ? "1 day" : `${days} days`);
 
 const snoozed = (t: Task, now: ISODateTime): boolean =>
   !!t.waitingSnoozedUntil && Date.parse(t.waitingSnoozedUntil) > Date.parse(now);

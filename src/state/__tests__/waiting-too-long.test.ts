@@ -45,15 +45,26 @@ describe("waiting too long", () => {
     expect(flagged()).not.toContain("Expense claim");
   });
 
-  it("remind me in 3 days hides the flag, then it comes back", () => {
+  it.each([
+    [1, 16, 17],
+    [3, 18, 19],
+    [7, 22, 23],
+  ])("remind me in %i day(s) hides the flag, then it comes back", (days, stillHidden, back) => {
     const t = st().addTask({ title: "Sort the photos", mode: "daily-life", priority: 4 });
     vi.setSystemTime(day(16));
-    st().snoozeWaiting(t.id);
+    st().snoozeWaiting(t.id, days);
     expect(flagged()).not.toContain("Sort the photos");
-    vi.setSystemTime(day(18));
+    vi.setSystemTime(new Date(2026, 10, stillHidden, 8, 59));
     expect(flagged()).not.toContain("Sort the photos");
-    vi.setSystemTime(new Date(2026, 10, 19, 9, 1));
+    vi.setSystemTime(new Date(2026, 10, back, 9, 1));
     expect(flagged()).toContain("Sort the photos");
+  });
+
+  it("editing a task doesn't clear its flag", () => {
+    const t = st().addTask({ title: "Sort the photos", mode: "daily-life", priority: 4 });
+    vi.setSystemTime(day(16));
+    st().updateTask(t.id, { title: "Sort the holiday photos", priority: 2 });
+    expect(flagged()).toContain("Sort the holiday photos");
   });
 
   it("move to the top puts it first and rests the flag", () => {

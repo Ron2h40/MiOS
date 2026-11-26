@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import {
-  WAITING_SNOOZE_DAYS,
+  snoozeLabel,
+  WAITING_SNOOZE_CHOICES,
   waitingReason,
   type DeadlockCycle,
   type ModeId,
@@ -92,65 +94,97 @@ export function StarvationPanel({
   onOpen: (task: Task) => void;
 }) {
   const tasks = useMios((st) => st.tasks);
-  const { resolveBlocker, moveToTop, snoozeWaiting } = useMios.getState();
-  const toast = useToast((t) => t.show);
   if (!flags.length) return null;
   const byId = new Map(tasks.map((t) => [t.id, t]));
 
   return (
     <Card title="Waiting too long" hint={`Blocked or untouched for ${days}+ days.`}>
       <ul className={s.waitingList}>
-        {flags.map(({ task, daysWaiting }) => {
-          const why = waitingReason(task, byId);
-          const remind = () => {
-            snoozeWaiting(task.id);
-            toast(`OK. MiOS will remind you about "${task.title}" in ${WAITING_SNOOZE_DAYS} days.`);
-          };
-          return (
-            <li key={task.id} className={s.waitingRow}>
-              <div>
-                <strong>{task.title}</strong>
-                <span>
-                  {why.kind === "untouched"
-                    ? `Ready but untouched for ${daysWaiting} days`
-                    : `Waiting ${daysWaiting} days on ${why.kind === "task" ? `"${why.title}"` : why.label}`}
-                </span>
-              </div>
-              <div className={s.waitingActions}>
-                {(why.kind === "person" || why.kind === "event") && (
-                  <Button size="sm" variant="primary" onClick={() => resolveBlocker(task.id, why.blockerId)}>
-                    {why.kind === "person" ? "They replied: unblock it" : "It happened: unblock it"}
-                  </Button>
-                )}
-                {why.kind === "task" && (
-                  <Button size="sm" variant="primary" onClick={() => byId.get(why.taskId) && onOpen(byId.get(why.taskId)!)}>
-                    Open that task
-                  </Button>
-                )}
-                {why.kind === "untouched" && (
-                  <>
-                    <Button size="sm" variant="primary" onClick={() => onStart(task)}>
-                      Start it
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        moveToTop(task.id);
-                        toast(`"${task.title}" is first in the queue.`);
-                      }}
-                    >
-                      Move to the top
-                    </Button>
-                  </>
-                )}
-                <Button size="sm" variant="plain" onClick={remind}>
-                  Remind me in {WAITING_SNOOZE_DAYS} days
-                </Button>
-              </div>
-            </li>
-          );
-        })}
+        {flags.map((f) => (
+          <WaitingRow key={f.task.id} flag={f} byId={byId} onStart={onStart} onOpen={onOpen} />
+        ))}
       </ul>
     </Card>
+  );
+}
+
+function WaitingRow({
+  flag: { task, daysWaiting },
+  byId,
+  onStart,
+  onOpen,
+}: {
+  flag: StarvationFlag;
+  byId: ReadonlyMap<string, Task>;
+  onStart: (task: Task) => void;
+  onOpen: (task: Task) => void;
+}) {
+  const { resolveBlocker, moveToTop, snoozeWaiting } = useMios.getState();
+  const toast = useToast((t) => t.show);
+  const [choosing, setChoosing] = useState(false);
+  const why = waitingReason(task, byId);
+  const blocking = why.kind === "task" ? byId.get(why.taskId) : undefined;
+
+  const remind = (d: number) => {
+    snoozeWaiting(task.id, d);
+    toast(`OK. MiOS will remind you about "${task.title}" in ${snoozeLabel(d)}.`);
+  };
+
+  return (
+    <li className={s.waitingRow}>
+      <div>
+        <strong>{task.title}</strong>
+        <span>
+          {why.kind === "untouched"
+            ? `Ready but untouched for ${daysWaiting} days`
+            : `Waiting ${daysWaiting} days on ${why.kind === "task" ? `"${why.title}"` : why.label}`}
+        </span>
+      </div>
+      {choosing ? (
+        <div className={s.waitingActions} role="group" aria-label="Remind me in">
+          <span className={s.waitingAsk}>Remind me in</span>
+          {WAITING_SNOOZE_CHOICES.map((d) => (
+            <Button key={d} size="sm" onClick={() => remind(d)}>
+              {snoozeLabel(d)}
+            </Button>
+          ))}
+          <Button size="sm" variant="plain" onClick={() => setChoosing(false)}>
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <div className={s.waitingActions}>
+          {(why.kind === "person" || why.kind === "event") && (
+            <Button size="sm" variant="primary" onClick={() => resolveBlocker(task.id, why.blockerId)}>
+              {why.kind === "person" ? "They replied: unblock it" : "It happened: unblock it"}
+            </Button>
+          )}
+          {blocking && (
+            <Button size="sm" variant="primary" onClick={() => onOpen(blocking)}>
+              Open that task
+            </Button>
+          )}
+          {why.kind === "untouched" && (
+            <>
+              <Button size="sm" variant="primary" onClick={() => onStart(task)}>
+                Start it
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  moveToTop(task.id);
+                  toast(`"${task.title}" is first in the queue.`);
+                }}
+              >
+                Move to the top
+              </Button>
+            </>
+          )}
+          <Button size="sm" variant="plain" onClick={() => setChoosing(true)}>
+            Remind me in…
+          </Button>
+        </div>
+      )}
+    </li>
   );
 }

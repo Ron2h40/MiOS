@@ -502,9 +502,16 @@ function NoticeView({ id }: { id: string }) {
             >
               They replied: unblock it
             </button>
-            <button type="button" className={`${s.bigButton} ${s.btnSoft}`} onClick={() => sort("OK. MiOS will remind you in 3 days")}>
-              Remind me in 3 days
-            </button>
+            <div className={s.field}>
+              <span>Remind me in</span>
+              <div className={s.pills}>
+                {["1 day", "3 days", "1 week"].map((d) => (
+                  <button key={d} type="button" onClick={() => sort(`OK. MiOS will remind you in ${d}`)}>
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </>
       )}
