@@ -56,6 +56,8 @@ export interface Task {
   /** When the task last changed state (used by starvation, A5). */
   stateChangedAt: ISODateTime;
   completedAt?: ISODateTime;
+  /** When the user last checked or corrected the actual time (kept or changed). */
+  timeCheckedAt?: ISODateTime;
   /** E1/E2: the calendar item this task was made from, so it's never added twice. */
   source?: { kind: "calendar"; eventKey: string; uid: string; recurring?: boolean };
   /** A repeating task made in MiOS: which series and which local day ("YYYY-MM-DD"). */

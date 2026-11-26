@@ -214,6 +214,34 @@
   font-weight: 400;
 }
 
+/* Time it took: hours and minutes */
+.timeTaken {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  border: none;
+}
+
+.timeTaken legend {
+  width: 100%;
+  padding: 0;
+}
+
+.timeTaken label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.timeTaken input {
+  width: 72px;
+}
+
 /* Small link-like toggles in a task row's meta line */
 .metaButton {
   border: none;

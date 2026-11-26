@@ -64,6 +64,9 @@ import {
   minutesLate,
   cleanSteps,
   reviewAnswered,
+  cleanMinutes,
+  MAX_ACTUAL_MINUTES,
+  type TimeCheckPlace,
 } from "@/core";
 
 /**
@@ -208,6 +211,12 @@ interface Actions {
   removeResearch(taskId: string, researchId: string): void;
   /** B7: answers to the review after a big task, or a skip. */
   saveReview(taskId: string, review: Omit<TaskReview, "at">): void;
+  /**
+   * A finished task's actual time: correct it, keep it (the same minutes), or
+   * skip the question (null). Only the time taken changes; on time or late
+   * stays as it was when finish was clicked.
+   */
+  checkTaskTime(taskId: string, minutes: number | null, where: TimeCheckPlace): Result<Task>;
 
   setStage(stage: Stage, reason?: "auto" | "manual"): void;
   /** Move the user up a stage if every gate signal passes. Returns the new stage if it changed. */
@@ -682,6 +691,26 @@ export const useMios = create<MiosStore>()(
           const saved: TaskReview = { ...review, answers, at: now() };
           replaceTask(taskId, (t) => ({ ...t, review: saved }));
           if (reviewAnswered(saved)) pushEvents({ type: "own_work", taskId, kind: "review" });
+        },
+
+        checkTaskTime(taskId, minutes, where) {
+          const task = get().tasks.find((t) => t.id === taskId);
+          if (!task) return err("Task not found.");
+          if (task.state !== "done") return err("Only a finished task's time can be corrected.");
+          const from = Math.round(task.actualMinutes);
+          const to = minutes === null ? from : cleanMinutes(minutes);
+          if (to === null) return err(`Enter a time between 1 minute and ${MAX_ACTUAL_MINUTES / 60 / 24} days.`);
+          const outcome = minutes === null ? "skipped" : to === from ? "kept" : "corrected";
+          const at = now();
+          const updated: Task = {
+            ...task,
+            ...(outcome === "corrected" ? { actualMinutes: to } : {}),
+            timeCheckedAt: at,
+            updatedAt: at,
+          };
+          replaceTask(taskId, () => updated);
+          pushEvents({ type: "time_checked", taskId, outcome, fromMinutes: from, toMinutes: to, where });
+          return ok(updated);
         },
 
         setStage(stage, reason = "manual") {

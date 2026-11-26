@@ -42,7 +42,22 @@ export type MiosEvent =
    * as-needed dose.
    */
   | { type: "med_logged"; at: ISODateTime; stage: Stage; scheduled: boolean; lateMinutes: number | null }
-  | { type: "med_dismissed"; at: ISODateTime; stage: Stage };
+  | { type: "med_dismissed"; at: ISODateTime; stage: Stage }
+  /**
+   * The user was shown a finished task's actual time and kept it, corrected it
+   * from `fromMinutes` to `toMinutes`, or skipped the question. The task's
+   * on-time result never changes.
+   */
+  | {
+      type: "time_checked";
+      at: ISODateTime;
+      stage: Stage;
+      taskId: string;
+      outcome: "kept" | "corrected" | "skipped";
+      fromMinutes: number;
+      toMinutes: number;
+      where: "finish_check" | "review" | "history";
+    };
 
 export type MiosEventType = MiosEvent["type"];
 

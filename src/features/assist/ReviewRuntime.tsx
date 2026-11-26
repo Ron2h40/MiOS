@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fixedReviewQuestions, reviewDue, stepsProgress, type Task } from "@/core";
+import { fixedReviewQuestions, reviewDue, stepsProgress, timeCheckDue, timeChecked, type Task } from "@/core";
+import { ON_TIME_NOTE, TimeTakenFields, useTimeTaken } from "./TimeTaken";
 import { WhyButton } from "@/features/ai/AiHelp";
 import { callAi, toAiTask } from "@/state/ai";
 import { useNow, useStage } from "@/state/hooks";
@@ -19,8 +20,10 @@ export function ReviewRuntime() {
   const tasks = useMios((st) => st.tasks);
   const events = useMios((st) => st.events);
   const [closed, setClosed] = useState<string[]>([]);
-  const due = reviewDue(tasks, events, Date.parse(now));
-  if (!due || closed.includes(due.id)) return null;
+  const at = Date.parse(now);
+  const due = reviewDue(tasks, events, at);
+  // The "forgot to click finish?" check comes first; the look-back waits for it.
+  if (!due || closed.includes(due.id) || timeCheckDue(tasks, events, at)) return null;
   return <ReviewDialog key={due.id} task={due} onClose={() => setClosed((c) => [...c, due.id])} />;
 }
 
@@ -38,6 +41,10 @@ function ReviewDialog({ task, onClose }: { task: Task; onClose: () => void }) {
   );
   const [answers, setAnswers] = useState<string[]>([]);
   const asked = useRef(false);
+  const checkTaskTime = useMios((st) => st.checkTaskTime);
+  // Already answered in the "forgot to click finish?" check? Then don't ask about the time again.
+  const [askTime] = useState(() => !timeChecked(task));
+  const time = useTimeTaken(task.actualMinutes);
 
   useEffect(() => {
     if (asked.current || !policy.aiButton) return;
@@ -66,6 +73,10 @@ function ReviewDialog({ task, onClose }: { task: Task; onClose: () => void }) {
   }, []);
 
   const finish = (skipped: boolean) => {
+    // A changed time is saved like any correction; an untouched one isn't logged.
+    if (!skipped && askTime && time.total !== null && time.total !== Math.round(task.actualMinutes)) {
+      checkTaskTime(task.id, time.total, "review");
+    }
     const questions = q.state === "ready" ? q.questions : [];
     saveReview(task.id, {
       answers: questions.map((question, i) => ({ question, answer: skipped ? "" : (answers[i] ?? "") })),
@@ -92,6 +103,12 @@ function ReviewDialog({ task, onClose }: { task: Task; onClose: () => void }) {
       }
     >
       <p className={s.lead}>A big one is done. A few questions about how it went. No grades; answer any you like.</p>
+      {askTime && task.actualMinutes >= 1 && (
+        <>
+          <TimeTakenFields label="Time it took (change it if the task was left running)" time={time} />
+          <p className={s.note}>{ON_TIME_NOTE}</p>
+        </>
+      )}
       {q.state === "loading" ? (
         <p className={s.note}>Thinking of questions…</p>
       ) : (

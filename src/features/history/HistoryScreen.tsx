@@ -20,6 +20,7 @@ import { formatMinutes, formatWhen } from "@/ui/format";
 import { Button, Card, Empty, Pill } from "@/ui/primitives";
 import { useToast } from "@/ui/toast";
 import assist from "@/features/assist/assist.module.css";
+import { EditTimeDialog } from "@/features/assist/TimeTaken";
 import s from "./history.module.css";
 
 const FILTERS: { id: HistoryFilter; label: string }[] = [
@@ -168,6 +169,9 @@ function HistoryRow({ item, now }: { item: HistoryItem; now: string }) {
   const tag = statusTag(item);
   const nowDate = new Date(Date.parse(now));
   const archived = item.status === "replaced" || item.status === "deleted";
+  // Finished tasks still in the list can have their time corrected.
+  const editable = item.status === "done" && !archived;
+  const [editing, setEditing] = useState(false);
 
   return (
     <li className={s.row}>
@@ -178,11 +182,17 @@ function HistoryRow({ item, now }: { item: HistoryItem; now: string }) {
           <span>{getMode(t.mode).label}</span>
           <span>{endedLabel(item, nowDate)}</span>
           {t.deadline && item.status !== "overdue" && <span>Deadline {formatWhen(t.deadline, nowDate)}</span>}
-          {t.estimateMinutes !== undefined && (
+          {(t.estimateMinutes !== undefined || t.actualMinutes >= 1) && (
             <span>
-              Guessed {formatMinutes(t.estimateMinutes)}
-              {t.actualMinutes >= 1 ? ` · took ${formatMinutes(t.actualMinutes)}` : ""}
+              {t.estimateMinutes !== undefined
+                ? `Guessed ${formatMinutes(t.estimateMinutes)}${t.actualMinutes >= 1 ? ` · took ${formatMinutes(t.actualMinutes)}` : ""}`
+                : `Took ${formatMinutes(t.actualMinutes)}`}
             </span>
+          )}
+          {editable && (
+            <button type="button" className={assist.metaButton} onClick={() => setEditing(true)}>
+              {t.actualMinutes >= 1 ? "Fix time" : "Add time"}
+            </button>
           )}
           {t.source && <Pill>From calendar</Pill>}
           {t.repeat && <Pill>↻ Repeat</Pill>}
@@ -211,6 +221,7 @@ function HistoryRow({ item, now }: { item: HistoryItem; now: string }) {
         {archived && item.expiresAt && (
           <div className={s.expiry}>Gone for good {formatWhen(item.expiresAt, nowDate)}.</div>
         )}
+        {editing && <EditTimeDialog task={t} onClose={() => setEditing(false)} />}
       </div>
       {archived && (
         <div className={s.actions}>

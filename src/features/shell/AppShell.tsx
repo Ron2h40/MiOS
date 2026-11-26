@@ -9,6 +9,7 @@ import { Onboarding } from "@/features/ai/AiDisclosure";
 import { AccountButton, AccountRuntime } from "@/features/account/Account";
 import { FeedbackLink } from "@/features/account/FeedbackLink";
 import { ReviewRuntime } from "@/features/assist/ReviewRuntime";
+import { TimeCheckRuntime } from "@/features/assist/TimeTaken";
 import { CalendarRuntime, CheckInBanner } from "@/features/calendar/CheckIn";
 import { GoogleRuntime } from "@/features/calendar/GoogleSync";
 import { RewardBanner, StreakBadge } from "@/features/rewards/Rewards";
@@ -86,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AiRuntime />
           <CalendarRuntime />
           <GoogleRuntime />
+          <TimeCheckRuntime />
           <ReviewRuntime />
           <AccountRuntime />
           <Onboarding />

@@ -66,6 +66,10 @@ export function FocusView() {
                 {over && " · past your guess"}
               </p>
             )}
+            <p className={s.source}>
+              Counted the whole time this task is Running, since you first pressed Start, including time away. You can
+              correct it after you finish, or later in History.
+            </p>
             {task.steps?.length ? (
               <div className={s.steps}>
                 <StepsList task={task} />

@@ -53,6 +53,14 @@
   color: var(--orange);
 }
 
+.source {
+  max-width: 36ch;
+  margin: 0 auto;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
 .actions {
   display: flex;
   gap: var(--space-3);

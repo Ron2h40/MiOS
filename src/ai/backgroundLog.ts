@@ -36,6 +36,7 @@ export const isB8Trigger = (e: MiosEvent): boolean => {
     case "own_work":
     case "med_logged":
     case "med_dismissed":
+    case "time_checked":
       return true;
     default:
       return false;
@@ -73,6 +74,12 @@ const FEATURE_WORDS: Record<string, string> = {
   deadlock: "broke a deadlock",
   schedule: "planned start times",
 };
+
+const TIME_CHECK_PLACES = {
+  finish_check: "after being asked if finish was clicked late",
+  review: "while looking back",
+  history: "in History",
+} as const;
 
 /** One short line per event, for the model. Task titles help it spot habits. */
 export const describeEvent = (e: MiosEvent, tasksById: ReadonlyMap<string, Task>): string => {
@@ -119,5 +126,13 @@ export const describeEvent = (e: MiosEvent, tasksById: ReadonlyMap<string, Task>
           : `${when} logged a daily medicine dose ${e.lateMinutes} min after its time`;
     case "med_dismissed":
       return `${when} dismissed a daily medicine reminder`;
+    case "time_checked": {
+      const place = TIME_CHECK_PLACES[e.where];
+      return e.outcome === "corrected"
+        ? `${when} corrected the time ${title(e.taskId)} took from ${e.fromMinutes} to ${e.toMinutes} min ${place} (on time or late is unchanged)`
+        : e.outcome === "kept"
+          ? `${when} confirmed ${title(e.taskId)} really took ${e.fromMinutes} min ${place}`
+          : `${when} skipped checking the ${e.fromMinutes} min ${title(e.taskId)} took ${place}`;
+    }
   }
 };
