@@ -502,8 +502,8 @@ function NoticeView({ id }: { id: string }) {
             >
               They replied: unblock it
             </button>
-            <button type="button" className={`${s.bigButton} ${s.btnSoft}`} onClick={() => sort("OK. MiOS will ask again in 3 days")}>
-              Still waiting: ask again in 3 days
+            <button type="button" className={`${s.bigButton} ${s.btnSoft}`} onClick={() => sort("OK. MiOS will remind you in 3 days")}>
+              Remind me in 3 days
             </button>
           </div>
         </>

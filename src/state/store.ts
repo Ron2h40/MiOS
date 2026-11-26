@@ -66,6 +66,7 @@ import {
   reviewAnswered,
   cleanMinutes,
   MAX_ACTUAL_MINUTES,
+  WAITING_SNOOZE_DAYS,
   type TimeCheckPlace,
 } from "@/core";
 
@@ -188,6 +189,10 @@ interface Actions {
   resolveBlocker(taskId: string, blockerId: string): void;
 
   moveTask(id: string, direction: "up" | "down", mode: ModeId): void;
+  /** Put a task first in the queue. Its "waiting too long" flag rests for a few days. */
+  moveToTop(id: string): void;
+  /** "Remind me in 3 days" on a task waiting too long. */
+  snoozeWaiting(id: string): void;
   sortByPriority(mode: ModeId): void;
   /** A3: the user chose to run an interrupt first, or queue it normally. */
   decideInterrupt(id: string, decision: "run_first" | "queue", usedAi?: boolean): void;
@@ -570,6 +575,19 @@ export const useMios = create<MiosStore>()(
           if (!order.size) return;
           applyOrder(order);
           pushEvents({ type: "decision_made", usedAi: false, feature: "order" });
+        },
+
+        moveToTop(id) {
+          // Ahead of every other task without renumbering the rest.
+          const first = Math.min(0, ...get().tasks.map((t) => t.order));
+          applyOrder(new Map([[id, first - 1]]));
+          get().snoozeWaiting(id);
+          pushEvents({ type: "decision_made", usedAi: false, feature: "order" });
+        },
+
+        snoozeWaiting(id) {
+          const until = new Date(Date.now() + WAITING_SNOOZE_DAYS * 86_400_000).toISOString();
+          replaceTask(id, (t) => ({ ...t, waitingSnoozedUntil: until, updatedAt: now() }));
         },
 
         sortByPriority(mode) {

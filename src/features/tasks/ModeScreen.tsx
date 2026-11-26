@@ -205,7 +205,12 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
         </div>
 
         <aside className={s.stack}>
-          <StarvationPanel flags={starved.filter((f) => modeIds.has(f.task.id))} days={settings.starvationDays} />
+          <StarvationPanel
+            flags={starved.filter((f) => modeIds.has(f.task.id))}
+            days={settings.starvationDays}
+            onStart={handlers.onStart}
+            onOpen={setEditing}
+          />
           <ModeLoadPanel load={load} current={modeId} />
         </aside>
       </div>

@@ -56,6 +56,8 @@ export interface Task {
   /** When the task last changed state (used by starvation, A5). */
   stateChangedAt: ISODateTime;
   completedAt?: ISODateTime;
+  /** "Waiting too long" is hidden until then ("Remind me in 3 days"). */
+  waitingSnoozedUntil?: ISODateTime;
   /** When the user last checked or corrected the actual time (kept or changed). */
   timeCheckedAt?: ISODateTime;
   /** E1/E2: the calendar item this task was made from, so it's never added twice. */

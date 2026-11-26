@@ -274,6 +274,39 @@
   background: var(--fill);
 }
 
+/* Waiting too long: each task with buttons for what it's waiting on */
+.waitingList {
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+}
+
+.waitingRow {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--orange-soft);
+}
+
+.waitingRow > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.waitingRow > div:first-child span {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.waitingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .previewLate {
   background: var(--red-soft);
 }
