@@ -40,7 +40,7 @@ export function PhoneHome({ mode }: { mode: ModeId }) {
   const updateTask = useMios((st) => st.updateTask);
   const { policy } = useStage();
   const toast = useToast((t) => t.show);
-  const { open, showOnSchedule, setTab } = usePhoneUi.getState();
+  const { open, showOnSchedule } = usePhoneUi.getState();
   const [starting, setStarting] = useState<Task | null>(null);
   const [checkIn, setCheckIn] = useState(false);
   const [wrap, setWrap] = useState<Wrap | null>(null);
@@ -93,7 +93,7 @@ export function PhoneHome({ mode }: { mode: ModeId }) {
           <section className={`${s.nowCard} ${s.nowEmpty}`}>
             <h2 className={s.nowTitle}>Nothing queued</h2>
             <p className={s.muted}>Add something, or enjoy the free time.</p>
-            <button type="button" className={`${s.bigButton} ${s.btnPrimary}`} onClick={() => setTab("schedule")}>
+            <button type="button" className={`${s.bigButton} ${s.btnPrimary}`} onClick={() => open({ kind: "add" })}>
               + Add a task
             </button>
           </section>

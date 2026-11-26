@@ -160,9 +160,9 @@ export function EditDialog({
 }: {
   task: Task | null;
   onClose: () => void;
-  /** B6 and B5, reachable for any task from here. */
-  onSteps: (task: Task) => void;
-  onResearch: (task: Task) => void;
+  /** B6 and B5, reachable for any task from here. Left out on the phone. */
+  onSteps?: (task: Task) => void;
+  onResearch?: (task: Task) => void;
 }) {
   const { policy } = useStage();
   const updateTask = useMios((st) => st.updateTask);
@@ -241,7 +241,7 @@ export function EditDialog({
               The planned start overlaps <strong>{conflicts[0].label}</strong>. Saving approves it.
             </p>
           )}
-          {task && (
+          {task && onSteps && onResearch && (
             <div className={s.repeatLine}>
               <span>Steps and research</span>
               <span>

@@ -1,14 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
-import { ALL_MODES, RESOURCE_PRESETS, tasksInMode, todaysReminders, type ModeId, type ResourceKey } from "@/core";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ALL_MODES,
+  RESOURCE_PRESETS,
+  splitByDeadline,
+  tasksInMode,
+  todaysReminders,
+  type ModeId,
+  type Priority,
+  type ResourceKey,
+} from "@/core";
+import { OrderAnswer, ScheduleAnswer, useQueueAi, type QueueAiFeature } from "@/features/ai/QueueAssist";
 import { RESOURCE_LABEL } from "@/features/resources/DayChart";
 import { DeadlockPanel, StarvationPanel } from "@/features/tasks/Panels";
-import { useDeadlocks, useNow, useStarved } from "@/state/hooks";
+import { TaskComposer } from "@/features/tasks/TaskComposer";
+import { BlockerDialog, EditDialog, StartDialog } from "@/features/tasks/TaskDialogs";
+import { useDeadlocks, useModeTasks, useNow, useStage, useStarved } from "@/state/hooks";
 import { useMios } from "@/state/store";
-import { formatTime } from "@/ui/format";
+import { formatTime, PRIORITY_LABEL } from "@/ui/format";
 import { useToast } from "@/ui/toast";
+import { TaskMeta } from "./PhoneHome";
 import { usePhoneUi } from "./phoneUi";
 import s from "./phone.module.css";
 
@@ -23,6 +36,12 @@ export function PhoneWindows({ mode }: { mode: ModeId }) {
       return <LogSheet key={w.resource ?? "all"} resource={w.resource} />;
     case "notice":
       return <NoticeView id={w.id} mode={mode} />;
+    case "task":
+      return <TaskSheet key={w.id} id={w.id} mode={mode} />;
+    case "add":
+      return <AddWindow key={w.start ?? "new"} mode={mode} start={w.start} />;
+    case "ai":
+      return <AiWindow key={w.feature} feature={w.feature} mode={mode} />;
   }
 }
 
@@ -198,7 +217,7 @@ function NoticeView({ id, mode }: { id: string; mode: ModeId }) {
   const settings = useMios((st) => st.settings);
   const deadlocks = useDeadlocks();
   const starved = useStarved(now);
-  const { close, setTab } = usePhoneUi.getState();
+  const { close, setTab, open } = usePhoneUi.getState();
   const ids = new Set(tasksInMode(tasks, mode).map((t) => t.id));
 
   if (id === "deadlock") {
@@ -217,11 +236,174 @@ function NoticeView({ id, mode }: { id: string; mode: ModeId }) {
           close();
           setTab("home");
         }}
-        onOpen={() => {
-          close();
-          setTab("schedule");
-        }}
+        onOpen={(t) => open({ kind: "task", id: t.id })}
       />
+    </FullScreen>
+  );
+}
+
+/* ---------- Schedule: a task's actions ---------- */
+
+const PRIORITIES: Priority[] = [1, 2, 3, 4];
+
+function TaskSheet({ id, mode }: { id: string; mode: ModeId }) {
+  const now = useNow(60_000);
+  const task = useMios((st) => st.tasks.find((t) => t.id === id));
+  const tasks = useMios((st) => st.tasks);
+  const { ready } = useModeTasks(mode);
+  const { setTaskState, updateTask, deleteTask, moveTask, resolveBlocker, removeBlocker } = useMios.getState();
+  const { policy } = useStage();
+  const { close, open } = usePhoneUi.getState();
+  const toast = useToast((t) => t.show);
+  const [dialog, setDialog] = useState<"start" | "block" | "edit" | null>(null);
+
+  // Deleted or finished elsewhere: nothing left to act on.
+  if (!task || task.state === "done") return null;
+
+  const move = (to: "ready" | "running" | "done") => {
+    const r = setTaskState(task.id, to);
+    if (!r.ok) toast(r.error, "warn");
+    else close();
+  };
+  // Guess first, as everywhere else (with the AI's second opinion at child and teen stage).
+  const start = () => (task.estimateMinutes && !policy.aiButton ? move("running") : setDialog("start"));
+  const { timed, untimed } = splitByDeadline(ready);
+  const section = timed.some((t) => t.id === id) ? timed : untimed;
+  const pos = section.findIndex((t) => t.id === id);
+  const titleOf = (taskId: string) => tasks.find((t) => t.id === taskId)?.title ?? "Deleted task";
+  const active = task.blockedBy.filter((b) => (b.kind === "task" ? tasks.find((t) => t.id === b.taskId)?.state !== "done" : !b.resolved));
+
+  return (
+    <BottomSheet title={task.title}>
+      <TaskMeta task={task} now={Date.parse(now)} />
+
+      {active.length > 0 && (
+        <ul className={s.blockerList} aria-label="Waiting on">
+          {active.map((b) => (
+            <li key={b.id}>
+              <span>
+                {b.kind === "task" ? "↳ " : b.kind === "person" ? "👤 " : "📅 "}
+                {b.kind === "task" ? titleOf(b.taskId) : b.label}
+              </span>
+              {b.kind === "task" ? (
+                <button type="button" onClick={() => open({ kind: "task", id: b.taskId })}>
+                  Open
+                </button>
+              ) : (
+                <button type="button" onClick={() => resolveBlocker(task.id, b.id)}>
+                  Resolved
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className={s.actionGrid}>
+        {task.state === "running" && <ActionButton icon="❚❚" label="Pause" onClick={() => move("ready")} />}
+        {task.state === "ready" && <ActionButton icon="▶" label="Start" onClick={start} />}
+        {task.state !== "blocked" && <ActionButton icon="✓" label="Done" tone="green" onClick={() => move("done")} />}
+        {task.state === "ready" && (
+          <>
+            <ActionButton icon="↑" label="Move up" disabled={pos <= 0} onClick={() => moveTask(id, "up", mode)} />
+            <ActionButton icon="↓" label="Move down" disabled={pos === section.length - 1} onClick={() => moveTask(id, "down", mode)} />
+          </>
+        )}
+        <ActionButton icon="⏸" label={task.state === "blocked" ? "Add blocker" : "Block"} onClick={() => setDialog("block")} />
+        <ActionButton icon="✎" label="Edit" onClick={() => setDialog("edit")} />
+        {task.blockedBy.length > 0 && active.length === 0 && (
+          <ActionButton icon="✕" label="Clear blockers" onClick={() => task.blockedBy.forEach((b) => removeBlocker(task.id, b.id))} />
+        )}
+      </div>
+
+      <div className={s.field}>
+        <span>Priority</span>
+        <div className={s.pills}>
+          {PRIORITIES.map((p) => (
+            <button key={p} type="button" aria-pressed={task.priority === p} onClick={() => updateTask(id, { priority: p })}>
+              P{p}
+            </button>
+          ))}
+        </div>
+        <span className={s.muted}>{PRIORITY_LABEL[task.priority]}</span>
+      </div>
+
+      <button
+        type="button"
+        className={s.deleteRow}
+        onClick={() => {
+          if (!confirm(`Delete "${task.title}"?`)) return;
+          close();
+          deleteTask(id);
+        }}
+      >
+        Delete task
+      </button>
+
+      <StartDialog
+        key={dialog === "start" ? "start" : "idle"}
+        task={dialog === "start" ? task : null}
+        onStart={(est) => {
+          if (est) updateTask(id, { estimateMinutes: est });
+          setDialog(null);
+          move("running");
+        }}
+        onClose={() => setDialog(null)}
+      />
+      <BlockerDialog key={dialog === "block" ? "block" : "idle-block"} task={dialog === "block" ? task : null} onClose={() => setDialog(null)} />
+      <EditDialog key={dialog === "edit" ? "edit" : "idle-edit"} task={dialog === "edit" ? task : null} onClose={() => setDialog(null)} />
+    </BottomSheet>
+  );
+}
+
+function ActionButton({ icon, label, onClick, disabled, tone }: { icon: string; label: string; onClick: () => void; disabled?: boolean; tone?: "green" }) {
+  return (
+    <button type="button" className={`${s.action} ${tone === "green" ? s.actionGreen : ""}`} onClick={onClick} disabled={disabled}>
+      <span aria-hidden>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+/* ---------- Schedule: the full new-task form ---------- */
+
+function AddWindow({ mode, start }: { mode: ModeId; start?: string }) {
+  const close = usePhoneUi((st) => st.close);
+  return (
+    <FullScreen title="New task">
+      <TaskComposer mode={mode} bare start={start} onDone={close} />
+    </FullScreen>
+  );
+}
+
+/* ---------- Schedule: AI help, one window per feature ---------- */
+
+const AI_TITLE: Record<QueueAiFeature, string> = { order: "Suggest an order", schedule: "Draft my day" };
+
+function AiWindow({ feature, mode }: { feature: QueueAiFeature; mode: ModeId }) {
+  const { ready } = useModeTasks(mode);
+  const close = usePhoneUi((st) => st.close);
+  const ai = useQueueAi(ready, feature);
+
+  // Closing without choosing keeps your own order or plan, as on the desktop.
+  const latest = useRef(ai);
+  useEffect(() => {
+    latest.current = ai;
+  });
+  useEffect(
+    () => () => {
+      const a = latest.current;
+      if (feature === "order" && a.order.state === "done") a.finishOrder("overridden");
+      if (feature === "schedule" && a.plan.state === "done") a.finishPlan(false);
+    },
+    [feature],
+  );
+
+  return (
+    <FullScreen title={`✨ ${AI_TITLE[feature]}`}>
+      <div className={s.aiWindow}>
+        {feature === "order" ? <OrderAnswer ai={ai} onDecided={close} /> : <ScheduleAnswer ai={ai} onDecided={close} />}
+      </div>
     </FullScreen>
   );
 }

@@ -10,13 +10,28 @@ import { ProtectedTimeDialog } from "./ProtectedTimeDialog";
 import { TaskFields, type TaskDraft } from "./TaskFields";
 import s from "./tasks.module.css";
 
-export function TaskComposer({ mode }: { mode: ModeId }) {
+/**
+ * The new-task form. On the phone it fills a full-screen window (`bare`),
+ * can start with a planned start (a free gap tapped on the calendar), and
+ * says when it's finished so the window can close.
+ */
+export function TaskComposer({
+  mode,
+  bare,
+  start,
+  onDone,
+}: {
+  mode: ModeId;
+  bare?: boolean;
+  start?: string;
+  onDone?: () => void;
+}) {
   const addTask = useMios((st) => st.addTask);
   const addRepeatingTask = useMios((st) => st.addRepeatingTask);
   const settings = useMios((st) => st.settings);
   const busy = useBusy();
 
-  const blank = (): TaskDraft => ({ title: "", mode: mode === "general" ? "daily-life" : mode, priority: 3 });
+  const blank = (): TaskDraft => ({ title: "", mode: mode === "general" ? "daily-life" : mode, priority: 3, ...(start ? { scheduledStart: start } : {}) });
   const [draft, setDraft] = useState<TaskDraft>(blank);
   const [isInterrupt, setIsInterrupt] = useState(false);
   const [repeat, setRepeat] = useState<RepeatChoice>("none");
@@ -35,7 +50,9 @@ export function TaskComposer({ mode }: { mode: ModeId }) {
     setWeekDays([]);
     setUntil("");
     setConflicts([]);
+    // An interrupt asks what to do with it first; done after that.
     if (isInterrupt) setInterruptId(task.id);
+    else onDone?.();
   };
 
   const submit = (e: FormEvent) => {
@@ -46,10 +63,10 @@ export function TaskComposer({ mode }: { mode: ModeId }) {
     else create(false);
   };
 
-  return (
-    <Card title="New task" hint="You set the priority. MiOS keeps the rules.">
+  const body = (
+    <>
       <form className={s.form} onSubmit={submit}>
-        <TaskFields draft={draft} onChange={setDraft} showMode={mode === "general"} />
+        <TaskFields draft={draft} onChange={setDraft} showMode={mode === "general"} autoFocus={bare && !start} />
         <div className={s.formRow}>
           <label>
             Repeat
@@ -112,7 +129,21 @@ export function TaskComposer({ mode }: { mode: ModeId }) {
       </form>
 
       <ProtectedTimeDialog conflicts={conflicts} onApprove={() => create(true)} onCancel={() => setConflicts([])} />
-      <InterruptDialog taskId={interruptId} onClose={() => setInterruptId(null)} />
+      <InterruptDialog
+        taskId={interruptId}
+        onClose={() => {
+          setInterruptId(null);
+          onDone?.();
+        }}
+      />
+    </>
+  );
+
+  return bare ? (
+    body
+  ) : (
+    <Card title="New task" hint="You set the priority. MiOS keeps the rules.">
+      {body}
     </Card>
   );
 }

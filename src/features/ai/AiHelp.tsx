@@ -23,11 +23,14 @@ export function AiHelpButton({
   label,
   onHelp,
   disabled,
+  className,
 }: {
   feature: AiFeature;
   label: string;
   onHelp: () => void;
   disabled?: boolean;
+  /** A plain button with this class instead of the standard one (the phone's own look). */
+  className?: string;
 }) {
   const { stage, policy } = useStage();
   const logAiUse = useMios((st) => st.logAiUse);
@@ -40,20 +43,28 @@ export function AiHelpButton({
     onHelp();
   };
 
+  const click = () => (stage === "teen" ? setAsking(true) : help());
+  const content = (
+    <>
+      <span className={s.spark} aria-hidden>
+        ✦
+      </span>
+      {label}
+      {stage === "teen" && <span className="visually-hidden"> (asks you a quick question first)</span>}
+    </>
+  );
+
   return (
     <>
-      <Button
-        size="sm"
-        variant="secondary"
-        disabled={disabled}
-        onClick={() => (stage === "teen" ? setAsking(true) : help())}
-      >
-        <span className={s.spark} aria-hidden>
-          ✦
-        </span>
-        {label}
-        {stage === "teen" && <span className="visually-hidden"> (asks you a quick question first)</span>}
-      </Button>
+      {className ? (
+        <button type="button" className={className} disabled={disabled} onClick={click}>
+          {content}
+        </button>
+      ) : (
+        <Button size="sm" variant="secondary" disabled={disabled} onClick={click}>
+          {content}
+        </Button>
+      )}
       {asking && (
         <PopupDialog
           feature={feature}

@@ -14,6 +14,7 @@ import { GoogleRuntime } from "@/features/calendar/GoogleSync";
 import { useHydrated } from "@/state/hooks";
 import { Toaster } from "@/ui/toast";
 import { PhoneHome } from "./PhoneHome";
+import { PhoneSchedule } from "./PhoneSchedule";
 import { PhoneWindows } from "./PhoneWindows";
 import { usePhoneUi, type PhoneTab } from "./phoneUi";
 import s from "./phone.module.css";
@@ -80,7 +81,8 @@ export function PhoneShell({ children }: { children: ReactNode }) {
   );
 }
 
-function Tabs({ mode, children }: { mode: ModeId; children: ReactNode }) {
+/** The route's own screen isn't shown on the phone's three pages; they're built from the same data. */
+function Tabs({ mode }: { mode: ModeId; children: ReactNode }) {
   const hydrated = useHydrated();
   const tab = usePhoneUi((st) => st.tab);
   const setTab = usePhoneUi((st) => st.setTab);
@@ -97,8 +99,7 @@ function Tabs({ mode, children }: { mode: ModeId; children: ReactNode }) {
         {!hydrated ? null : tab === "home" ? (
           <PhoneHome mode={mode} />
         ) : tab === "schedule" ? (
-          // Until the phone Schedule page is built, the full task screen stands in.
-          <div className={s.page}>{children}</div>
+          <PhoneSchedule mode={mode} />
         ) : (
           <MeLinks />
         )}
@@ -137,7 +138,11 @@ function TopLeft({ mode }: { mode: ModeId }) {
       </button>
     );
   }
-  return <span />;
+  return (
+    <button type="button" className={s.cornerButton} aria-label="Add a task" onClick={() => open({ kind: "add" })}>
+      <span aria-hidden>＋</span>
+    </button>
+  );
 }
 
 function Logo() {

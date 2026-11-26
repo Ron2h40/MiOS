@@ -14,7 +14,13 @@ export type PhoneFilter = "all" | "running" | "ready" | "blocked";
 export type PhoneWindow =
   | { kind: "mode" }
   | { kind: "log"; resource?: ResourceKey }
-  | { kind: "notice"; id: string };
+  | { kind: "notice"; id: string }
+  /** A task's actions, from Schedule. */
+  | { kind: "task"; id: string }
+  /** The full new-task form; `start` when a free gap was tapped. */
+  | { kind: "add"; start?: string }
+  /** One AI feature, in its own window. */
+  | { kind: "ai"; feature: "order" | "schedule" };
 
 interface PhoneUi {
   tab: PhoneTab;
