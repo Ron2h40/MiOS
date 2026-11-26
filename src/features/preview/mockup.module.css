@@ -1354,6 +1354,233 @@
   color: var(--text-secondary);
 }
 
+/* ---------- Calendar (iPhone style) ---------- */
+
+.cal {
+  display: grid;
+  gap: 8px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.calTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+}
+
+.calBack,
+.calToday {
+  min-height: 40px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--red) !important;
+  font-size: 17px !important;
+  font-weight: 500;
+}
+
+.calMonthName {
+  font-size: 22px;
+  color: var(--red);
+}
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  touch-action: pan-y;
+}
+
+.weekDay {
+  border: none;
+  background: none;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 0;
+}
+
+.weekDay small {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.weekDay span,
+.calDay span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 17px;
+}
+
+.calIsToday span {
+  color: var(--red);
+  font-weight: 600;
+}
+
+.calPicked span {
+  background: var(--text);
+  color: var(--bg-elevated);
+  font-weight: 600;
+}
+
+.calIsToday.calPicked span {
+  background: var(--red);
+  color: #fff;
+}
+
+.calDayHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--separator);
+  font-size: 15px;
+}
+
+.dayGrid {
+  height: 440px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--separator);
+}
+
+.dayInner {
+  position: relative;
+  margin: 8px 0;
+}
+
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--separator);
+}
+
+.hourLine span {
+  position: absolute;
+  left: 0;
+  top: -8px;
+  width: 44px;
+  padding-right: 6px;
+  background: var(--bg-elevated);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+
+.block {
+  position: absolute;
+  left: 50px;
+  right: 2px;
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 13px;
+}
+
+.block strong {
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.block span {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.block_busy {
+  background: var(--purple-soft);
+  border-left: 3px solid var(--purple);
+  color: color-mix(in srgb, var(--purple) 75%, var(--text));
+}
+
+.block_task {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  color: color-mix(in srgb, var(--accent) 70%, var(--text)) !important;
+}
+
+.block_free {
+  background: none;
+  border: 1.5px dashed color-mix(in srgb, var(--green) 55%, transparent);
+  color: var(--green) !important;
+}
+
+.nowRule {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  height: 2px;
+  background: var(--red);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.nowRule::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.nowRule span {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -8px;
+  padding: 0 2px;
+  background: var(--bg-elevated);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.calMonth {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 4px;
+  text-align: center;
+}
+
+.calHead {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.calDay {
+  position: relative;
+  border: none;
+  background: none;
+  display: grid;
+  justify-items: center;
+  min-height: 48px;
+  padding: 0;
+}
+
+.calDay i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
 /* ---------- AI windows ---------- */
 
 .aiTriggers {

@@ -31,7 +31,7 @@ export type SubPage = "history" | "progress" | "meds" | "settings";
 export type Sheet =
   | { kind: "mode" }
   | { kind: "account" }
-  | { kind: "add"; editId?: string }
+  | { kind: "add"; editId?: string; start?: string }
   | { kind: "task"; id: string }
   | { kind: "block"; id: string }
   | { kind: "log"; resource?: ResourceId }
@@ -237,13 +237,18 @@ function useMockupState() {
 
   const remove = (id: string) => change("Deleted", (d) => ({ ...d, tasks: d.tasks.filter((t) => t.id !== id) }));
 
-  const toTask = (draft: Draft): Pick<MockTask, "title" | "mode" | "priority" | "guess" | "due"> => ({
-    title: draft.title.trim(),
-    mode: draft.mode,
-    priority: draft.priority,
-    guess: draft.guess,
-    due: draft.due ? new Date(draft.due).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : undefined,
-  });
+  const toTask = (draft: Draft): Pick<MockTask, "title" | "mode" | "priority" | "guess" | "due" | "start"> => {
+    // A planned start today shows on the calendar.
+    const start = draft.start ? new Date(draft.start) : null;
+    return {
+      title: draft.title.trim(),
+      mode: draft.mode,
+      priority: draft.priority,
+      guess: draft.guess,
+      due: draft.due ? new Date(draft.due).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : undefined,
+      start: start && start.getMonth() === 10 && start.getDate() === 25 ? start.getHours() + start.getMinutes() / 60 : undefined,
+    };
+  };
 
   /** Add a task; returns its id. */
   const addTask = (draft: Draft): string => {

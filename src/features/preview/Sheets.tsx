@@ -28,7 +28,7 @@ export function Sheets() {
     case "account":
       return <AccountSheet />;
     case "add":
-      return <AddSheet key={sh.editId ?? "new"} editId={sh.editId} />;
+      return <AddSheet key={sh.editId ?? sh.start ?? "new"} editId={sh.editId} start={sh.start} />;
     case "task":
       return <TaskSheet id={sh.id} />;
     case "block":
@@ -191,7 +191,7 @@ function AccountSheet() {
 /* ---------- Tasks ---------- */
 
 /** The same task form as the desktop, full screen, closed with one tap. */
-function AddSheet({ editId }: { editId?: string }) {
+function AddSheet({ editId, start }: { editId?: string; start?: string }) {
   const m = useMockup();
   const editing = editId ? m.data.tasks.find((t) => t.id === editId) : undefined;
   const [draft, setDraft] = useState<Draft>(() => ({
@@ -199,6 +199,8 @@ function AddSheet({ editId }: { editId?: string }) {
     mode: editing?.mode ?? (m.mode === "general" ? "work" : m.mode),
     priority: editing?.priority ?? 3,
     guess: editing?.guess,
+    // From tapping a free gap in the calendar.
+    start,
     repeat: "none",
   }));
   const [interrupt, setInterrupt] = useState(false);
