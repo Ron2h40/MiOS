@@ -114,16 +114,18 @@ export function PhoneCalendar({ tasks }: { tasks: MockTask[] }) {
   return (
     <section className={`${s.card} ${s.cal}`}>
       <div className={s.calTop}>
-        {view === "day" ? (
-          <button type="button" className={s.calBack} onClick={() => setView("month")}>
-            ‹ November
+        <h3 className={s.calMonthName}>{view === "month" ? MONTH.name : "Calendar"}</h3>
+        <div className={s.calButtons}>
+          {/* Like the iPhone: the month name goes back to the month. */}
+          {view === "day" && (
+            <button type="button" className={s.calBack} onClick={() => setView("month")}>
+              ‹ November
+            </button>
+          )}
+          <button type="button" className={s.calToday} onClick={() => pick(MONTH.today)} disabled={isToday && view === "day"}>
+            Today
           </button>
-        ) : (
-          <strong className={s.calMonthName}>{MONTH.name}</strong>
-        )}
-        <button type="button" className={s.calToday} onClick={() => pick(MONTH.today)} disabled={isToday && view === "day"}>
-          Today
-        </button>
+        </div>
       </div>
 
       {view === "month" ? (

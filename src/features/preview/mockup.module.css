@@ -1367,23 +1367,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   min-height: 40px;
 }
 
+/* MiOS's own pill buttons, as on the desktop calendar. */
 .calBack,
 .calToday {
-  min-height: 40px;
-  padding: 0 4px;
-  border: none;
-  background: none;
-  color: var(--red) !important;
-  font-size: 17px !important;
-  font-weight: 500;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text) !important;
+  font-size: 14px !important;
+  font-weight: 600;
 }
 
 .calMonthName {
-  font-size: 22px;
-  color: var(--red);
+  margin: 0;
+  font-size: 17px;
+}
+
+.calButtons {
+  display: flex;
+  gap: 6px;
 }
 
 .week {
@@ -1414,22 +1422,23 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  font-size: 17px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
 
 .calIsToday span {
-  color: var(--red);
-  font-weight: 600;
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .calPicked span {
-  background: var(--text);
-  color: var(--bg-elevated);
-  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .calIsToday.calPicked span {
-  background: var(--red);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -1438,7 +1447,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 0;
+  padding: 8px 0 4px;
   border-top: 1px solid var(--separator);
   font-size: 15px;
 }
@@ -1574,11 +1583,12 @@
   padding: 0;
 }
 
+/* Busy days: the calendar's colour, like the desktop's dots. */
 .calDay i {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--text-tertiary);
+  background: var(--purple);
 }
 
 /* ---------- AI windows ---------- */
