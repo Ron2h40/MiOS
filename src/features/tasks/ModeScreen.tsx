@@ -11,6 +11,7 @@ import { QueueAssist } from "@/features/ai/QueueAssist";
 import { MedReminders } from "@/features/meds/MedReminders";
 import { ResourceStrip } from "@/features/resources/ResourceStrip";
 import { MiniCalendar } from "@/features/calendar/MiniCalendar";
+import { FreeTimeCard } from "@/features/calendar/FreeTime";
 import { DeadlockPanel, ModeLoadPanel, StarvationPanel } from "./Panels";
 import { TaskComposer } from "./TaskComposer";
 import { ResearchDialog } from "@/features/assist/ResearchDialog";
@@ -132,6 +133,7 @@ export function ModeScreen({ modeId }: { modeId: ModeId }) {
 
         <aside className={s.stack}>
           <TaskComposer key={modeId} mode={modeId} />
+          <FreeTimeCard />
         </aside>
       </div>
 

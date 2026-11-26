@@ -8,7 +8,7 @@ export type ModeView = MockMode | "general";
 export type MockState = "running" | "ready" | "blocked" | "done";
 
 export const MODES: { id: ModeView; label: string; icon: string }[] = [
-  { id: "general", label: "General", icon: "🧭" },
+  { id: "general", label: "General", icon: "☯️" },
   { id: "work", label: "Work", icon: "💼" },
   { id: "daily-life", label: "Daily life", icon: "☀️" },
   { id: "chores", label: "Chores", icon: "🧺" },

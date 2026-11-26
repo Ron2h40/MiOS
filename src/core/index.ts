@@ -22,4 +22,5 @@ export * from "./agenda";
 export * from "./history";
 export * from "./assist";
 export * from "./timeCheck";
+export * from "./freeTime";
 export * from "./meds";

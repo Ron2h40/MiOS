@@ -25,7 +25,7 @@ export const GENERAL_MODE: ModeDefinition = {
   id: "general",
   label: "General",
   blurb: "Everything from every mode in one place.",
-  icon: "◎",
+  icon: "☯️",
 };
 
 export const ALL_MODES: readonly ModeDefinition[] = [GENERAL_MODE, ...TASK_MODES];
