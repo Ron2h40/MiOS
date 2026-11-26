@@ -12,6 +12,8 @@ import { ReviewRuntime } from "@/features/assist/ReviewRuntime";
 import { TimeCheckRuntime } from "@/features/assist/TimeTaken";
 import { CalendarRuntime, CheckInBanner } from "@/features/calendar/CheckIn";
 import { GoogleRuntime } from "@/features/calendar/GoogleSync";
+import { PhoneShell } from "@/features/phone/PhoneShell";
+import { usePhone } from "@/features/phone/usePhone";
 import { RewardBanner, StreakBadge } from "@/features/rewards/Rewards";
 import { useAccount } from "@/state/account";
 import { useHydrated, useStage } from "@/state/hooks";
@@ -30,6 +32,8 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const hydrated = useHydrated();
+  const phone = usePhone();
+  if (phone) return <PhoneShell>{children}</PhoneShell>;
 
   return (
     <div className={s.frame}>

@@ -24,7 +24,8 @@ export const useToast = create<ToastState>((set) => ({
   clear: () => set({ message: null, action: undefined }),
 }));
 
-export function Toaster() {
+/** `bottom` lifts it clear of anything fixed at the bottom, like the phone's tab bar. */
+export function Toaster({ bottom = "24px" }: { bottom?: string }) {
   const { message, tone, action, clear } = useToast();
   useEffect(() => {
     if (!message) return;
@@ -40,9 +41,9 @@ export function Toaster() {
       style={{
         position: "fixed",
         left: "50%",
-        bottom: 24,
+        bottom,
         transform: "translateX(-50%)",
-        zIndex: 50,
+        zIndex: 1000,
         maxWidth: "min(520px, calc(100vw - 32px))",
         padding: "12px 18px",
         borderRadius: 14,
