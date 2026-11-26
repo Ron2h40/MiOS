@@ -1,6 +1,7 @@
 "use client";
 
 import { DAY_SERIES, fmtHour, NOW_HOUR, RESOURCES } from "./mockData";
+import { stageInfo } from "./Sheets";
 import { useMockup, type SubPage } from "./store";
 import s from "./mockup.module.css";
 
@@ -13,8 +14,12 @@ const ROWS: { page: SubPage; icon: string; label: string; hint: string }[] = [
 
 export function MePage() {
   const m = useMockup();
+  const stage = stageInfo(m.stage);
   return (
     <div className={s.page}>
+      <button type="button" className={s.stageBadge} onClick={() => m.openSheet({ kind: "stage" })}>
+        {stage.icon} {stage.name}
+      </button>
       <section className={s.card}>
         <div className={s.cardHead}>
           <h3>Resources today</h3>

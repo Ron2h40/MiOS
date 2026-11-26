@@ -23,6 +23,8 @@ interface Data {
 }
 
 export type Tab = "home" | "schedule" | "me";
+export type Stage = "child" | "teen" | "adult";
+export type AiFeature = "order" | "schedule";
 export type Filter = "all" | "running" | "ready" | "blocked";
 export type SubPage = "history" | "progress" | "meds" | "settings";
 
@@ -37,7 +39,12 @@ export type Sheet =
   | { kind: "notice"; id: string }
   | { kind: "page"; page: SubPage }
   | { kind: "timecheck"; id: string }
-  | { kind: "fixtime"; id: string; from: SubPage };
+  | { kind: "fixtime"; id: string; from: SubPage }
+  | { kind: "ai"; feature: AiFeature }
+  | { kind: "estimate"; id: string }
+  | { kind: "interrupt"; id: string }
+  | { kind: "review"; id: string }
+  | { kind: "stage" };
 
 export interface Draft {
   title: string;
@@ -57,11 +64,15 @@ interface Toast {
 
 const RUNNING_CAP = 1;
 
+/** A big task gets the look-back questions after it's done. */
+export const isBig = (t: Pick<MockTask, "guess" | "spent">): boolean => (t.guess ?? 0) >= 60 || t.spent >= 60;
+
 function useMockupState() {
   const [data, setData] = useState<Data>({ tasks: START_TASKS, notices: START_NOTICES, meds: START_MEDS, levels: START_LEVELS });
   const [tab, setTab] = useState<Tab>("home");
   const [mode, setMode] = useState<ModeView>("general");
   const [filter, setFilter] = useState<Filter>("all");
+  const [stage, setStage] = useState<Stage>("child");
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   // Seconds in the current running stretch; added to the task when it stops.
@@ -124,13 +135,22 @@ function useMockupState() {
   const running = data.tasks.filter((t) => t.state === "running");
   const spentNow = (t: MockTask) => t.spent + (t.state === "running" ? runSeconds / 60 : 0);
 
-  const start = (id: string) => {
+  /**
+   * Start a task. Without a time guess it asks for one first (with the AI's
+   * estimate at child and teen stage); `guess` is that answer.
+   */
+  const start = (id: string, guess?: number) => {
     if (running.length >= RUNNING_CAP && !running.some((t) => t.id === id)) {
       showToast(`One task runs at a time. Pause "${running[0].title}" first.`);
       return false;
     }
+    const t = data.tasks.find((x) => x.id === id)!;
+    if (!t.guess && !guess) {
+      openSheet({ kind: "estimate", id });
+      return false;
+    }
     setRunSeconds(0);
-    change("Started", (d) => patchTask(d, id, { state: "running" }));
+    change("Started", (d) => patchTask(d, id, { state: "running", ...(guess ? { guess } : {}) }));
     return true;
   };
 
@@ -139,14 +159,58 @@ function useMockupState() {
     change("Paused", (d) => patchTask(d, id, { state: "ready", spent: spentNow(t) }));
   };
 
-  /** Finish a task. True when the "forgot to click finish?" check opened. */
+  /**
+   * Finish a task. A task that took twice its guess asks "forgot to click
+   * finish?" first; a big one then gets the look-back questions. True when a
+   * window opened.
+   */
   const done = (id: string): boolean => {
     const t = data.tasks.find((x) => x.id === id)!;
     const spent = spentNow(t);
     change(`Done: ${t.title}`, (d) => patchTask(d, id, { state: "done", spent }));
-    const ask = !!t.guess && spent >= t.guess * 2;
-    if (ask) openSheet({ kind: "timecheck", id });
-    return ask;
+    if (t.guess && spent >= t.guess * 2) {
+      openSheet({ kind: "timecheck", id });
+      return true;
+    }
+    if (isBig(t)) {
+      openSheet({ kind: "review", id });
+      return true;
+    }
+    return false;
+  };
+
+  /** Use an AI order: the ready tasks in this order, in the slots they held. */
+  const applyOrder = (ids: string[], text: string) =>
+    change(text, (d) => {
+      const slots = d.tasks.map((t, k) => (ids.includes(t.id) ? k : -1)).filter((k) => k >= 0);
+      const tasks = [...d.tasks];
+      ids.forEach((id, k) => {
+        tasks[slots[k]] = d.tasks.find((t) => t.id === id)!;
+      });
+      return { ...d, tasks };
+    });
+
+  /** Use a drafted day: start times, and the queue in that order. */
+  const applySchedule = (starts: { id: string; start: number }[]) => {
+    const before = data;
+    const ordered = [...starts].sort((a, b) => a.start - b.start).map((x) => x.id);
+    const withTimes = starts.reduce((d, x) => patchTask(d, x.id, { start: x.start }), data);
+    const slots = withTimes.tasks.map((t, k) => (ordered.includes(t.id) ? k : -1)).filter((k) => k >= 0);
+    const tasks = [...withTimes.tasks];
+    ordered.forEach((id, k) => {
+      tasks[slots[k]] = withTimes.tasks.find((t) => t.id === id)!;
+    });
+    setData({ ...withTimes, tasks });
+    showToast("Day planned. The queue follows it.", before);
+  };
+
+  /** An interrupt: run it first, or queue it normally. */
+  const decideInterrupt = (id: string, first: boolean) => {
+    if (!first) return showToast("Queued like any other task");
+    change("Moved to the front of the queue", (d) => {
+      const t = d.tasks.find((x) => x.id === id)!;
+      return { ...d, tasks: [t, ...d.tasks.filter((x) => x.id !== id)] };
+    });
   };
 
   const setPriority = (id: string, priority: MockTask["priority"]) =>
@@ -181,11 +245,15 @@ function useMockupState() {
     due: draft.due ? new Date(draft.due).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : undefined,
   });
 
-  const addTask = (draft: Draft) =>
+  /** Add a task; returns its id. */
+  const addTask = (draft: Draft): string => {
+    const id = `new-${data.tasks.length}-${draft.title.length}`;
     change(`Added: ${draft.title.trim()}`, (d) => ({
       ...d,
-      tasks: [...d.tasks, { id: `new-${d.tasks.length}-${draft.title.length}`, state: "ready", spent: 0, ...toTask(draft) }],
+      tasks: [...d.tasks, { id, state: "ready", spent: 0, ...toTask(draft) }],
     }));
+    return id;
+  };
 
   const editTask = (id: string, draft: Draft) => change("Saved", (d) => patchTask(d, id, toTask(draft)));
 
@@ -230,6 +298,13 @@ function useMockupState() {
     showToast,
     spentNow,
     inMode: (t: MockTask) => mode === "general" || t.mode === mode,
+    stage,
+    setStage,
+    /** AI helps at child and teen stage; at adult stage it's gone. */
+    aiOn: stage !== "adult",
+    applyOrder,
+    applySchedule,
+    decideInterrupt,
     start,
     pause,
     done,

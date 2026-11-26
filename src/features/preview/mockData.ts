@@ -39,8 +39,8 @@ export const NOW_HOUR = 10.25;
 export const START_TASKS: MockTask[] = [
   { id: "slides", title: "Finish slides for Thursday's meeting", mode: "work", state: "running", priority: 1, guess: 60, due: "Tomorrow 2:00 PM", start: 9.75, spent: 32 },
   { id: "report", title: "Draft the monthly report", mode: "work", state: "ready", priority: 2, guess: 90, due: "Mon", start: 13.5, spent: 0 },
-  { id: "dentist", title: "Book dentist appointment", mode: "daily-life", state: "ready", priority: 3, guess: 10, due: "Fri", spent: 0 },
-  { id: "alex", title: "Reply to Alex about Saturday", mode: "daily-life", state: "ready", priority: 3, guess: 5, spent: 0 },
+  { id: "dentist", title: "Book dentist appointment", mode: "daily-life", state: "ready", priority: 3, due: "Fri", spent: 0 },
+  { id: "alex", title: "Reply to Alex about Saturday", mode: "daily-life", state: "ready", priority: 3, spent: 0 },
   { id: "laundry", title: "Laundry", mode: "chores", state: "ready", priority: 3, guess: 20, start: 19.75, spent: 0 },
   { id: "plan", title: "Update the project plan", mode: "work", state: "blocked", priority: 2, guess: 45, spent: 0, blockedBy: "Get budget sign-off from Sam" },
   { id: "budget", title: "Get budget sign-off from Sam", mode: "work", state: "blocked", priority: 2, guess: 15, spent: 0, blockedBy: "Update the project plan" },

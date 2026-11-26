@@ -1354,6 +1354,132 @@
   color: var(--text-secondary);
 }
 
+/* ---------- AI windows ---------- */
+
+.aiTriggers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.aiTriggers button {
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--purple) 35%, transparent);
+  border-radius: 14px;
+  background: var(--purple-soft);
+  color: var(--purple) !important;
+  font-size: 15px !important;
+  font-weight: 600;
+}
+
+.aiCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--purple-soft);
+  font-size: 15px;
+}
+
+.why button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--fill);
+  font-size: 14px !important;
+  font-weight: 600;
+  color: var(--text-secondary) !important;
+}
+
+.why p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.thinking {
+  margin: 24px 0;
+  text-align: center;
+  color: var(--text-secondary);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.aiList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.aiList li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow);
+}
+
+.aiTime {
+  flex: none;
+  width: 70px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.askKicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--purple);
+}
+
+.askQuestion {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.reviewQ {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.reviewQ textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--separator);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.stageBadge {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green) !important;
+  font-size: 14px !important;
+  font-weight: 700;
+}
+
 /* ---------- Toast ---------- */
 
 .toast {
@@ -1374,6 +1500,11 @@
   font-size: 15px;
   box-shadow: var(--shadow-pop);
   animation: rise 0.18s ease;
+}
+
+.toastTop {
+  top: calc(env(safe-area-inset-top) + 12px);
+  bottom: auto;
 }
 
 .toast button {

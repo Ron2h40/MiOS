@@ -73,7 +73,8 @@ function Screen() {
       </nav>
 
       {m.toast && (
-        <div key={m.toast.id} className={s.toast} role="status">
+        // With a window open, the toast moves to the top so it never covers the window's buttons.
+        <div key={m.toast.id} className={`${s.toast} ${m.sheet ? s.toastTop : ""}`} role="status">
           <span>{m.toast.text}</span>
           {m.toast.undo && (
             <button type="button" onClick={m.undo}>

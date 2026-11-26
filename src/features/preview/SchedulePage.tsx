@@ -23,7 +23,7 @@ interface Slot {
 }
 
 /** What's left of today: calendar items, tasks with a start time, and the free gaps between them. */
-const timeline = (tasks: MockTask[]): Slot[] => {
+export const timeline = (tasks: MockTask[]): Slot[] => {
   const taken: Slot[] = [
     ...CALENDAR_TODAY.map((c) => ({ ...c, kind: "busy" as const })),
     ...tasks
@@ -96,6 +96,16 @@ export function SchedulePage() {
       )}
 
       {show("running") && running.length > 0 && <TaskGroup title="Running" tasks={running} />}
+      {m.aiOn && show("ready") && ready.length > 1 && (
+        <div className={s.aiTriggers} role="group" aria-label="AI help">
+          <button type="button" onClick={() => m.openSheet({ kind: "ai", feature: "order" })}>
+            ✨ Suggest an order
+          </button>
+          <button type="button" onClick={() => m.openSheet({ kind: "ai", feature: "schedule" })}>
+            ✨ Draft my day
+          </button>
+        </div>
+      )}
       {show("ready") && <TaskGroup title="Queue" hint="Runs top to bottom" tasks={ready} numbered empty="Nothing ready." />}
       {show("blocked") && <TaskGroup title="Blocked" tasks={blocked} empty="Nothing blocked." />}
       {m.filter === "running" && running.length === 0 && <p className={s.emptyNote}>Nothing running.</p>}

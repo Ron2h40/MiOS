@@ -13,7 +13,8 @@ import {
   type MockTask,
   type ResourceId,
 } from "./mockData";
-import { useMockup, type Draft, type Sheet, type SubPage } from "./store";
+import { AiWindow, EstimateSheet, InterruptSheet, ReviewSheet } from "./AiSheets";
+import { isBig, useMockup, type Draft, type Sheet, type Stage, type SubPage } from "./store";
 import s from "./mockup.module.css";
 
 /** Whichever window is open. Only one at a time; the back gesture closes it. */
@@ -43,7 +44,51 @@ export function Sheets() {
     case "timecheck":
     case "fixtime":
       return <TimeSheet key={sh.id} sheet={sh} />;
+    case "ai":
+      return <AiWindow key={sh.feature} feature={sh.feature} />;
+    case "estimate":
+      return <EstimateSheet key={sh.id} id={sh.id} />;
+    case "interrupt":
+      return <InterruptSheet key={sh.id} id={sh.id} />;
+    case "review":
+      return <ReviewSheet key={sh.id} id={sh.id} />;
+    case "stage":
+      return <StageSheet />;
   }
+}
+
+const STAGE_INFO: Record<Stage, { icon: string; name: string; text: string }> = {
+  child: { icon: "🌱", name: "Child stage", text: "AI helps the most: it answers straight away when you ask." },
+  teen: { icon: "🌿", name: "Teen stage", text: "You answer a quick tap question first, then the AI helps." },
+  adult: { icon: "🌳", name: "Adult stage", text: "The AI steps back. Your own decisions run things." },
+};
+
+export const stageInfo = (stage: Stage) => STAGE_INFO[stage];
+
+function StageSheet() {
+  const m = useMockup();
+  const info = STAGE_INFO[m.stage];
+  return (
+    <BottomSheet title={`${info.icon} ${info.name}`}>
+      <p className={s.lead}>{info.text} You move up as your own decisions get better.</p>
+      <div className={s.noticeCard}>
+        <span className={s.muted}>3 of 5 signals for the next stage are met.</span>
+        <div className={s.bar}>
+          <span style={{ width: "60%" }} />
+        </div>
+      </div>
+      <div className={s.field}>
+        <span>Mockup only: try another stage</span>
+        <div className={s.pills}>
+          {(["child", "teen", "adult"] as const).map((st) => (
+            <button key={st} type="button" aria-pressed={m.stage === st} onClick={() => m.setStage(st)}>
+              {STAGE_INFO[st].icon} {STAGE_INFO[st].name.replace(" stage", "")}
+            </button>
+          ))}
+        </div>
+      </div>
+    </BottomSheet>
+  );
 }
 
 /* ---------- Frames ---------- */
@@ -163,7 +208,11 @@ function AddSheet({ editId }: { editId?: string }) {
   const save = () => {
     if (!ok) return;
     if (editId) m.editTask(editId, draft);
-    else m.addTask(draft);
+    else {
+      const id = m.addTask(draft);
+      // An interrupt goes straight to the interrupt check, in its own window.
+      if (interrupt) return m.openSheet({ kind: "interrupt", id });
+    }
     m.closeSheet();
   };
 
@@ -701,7 +750,13 @@ function TimeSheet({ sheet }: { sheet: Extract<Sheet, { kind: "timecheck" | "fix
   const [mins, setMins] = useState(String(spent % 60));
   if (!t) return null;
   const total = (Number(hours) || 0) * 60 + (Number(mins) || 0);
-  const back = () => (sheet.kind === "fixtime" ? m.openSheet({ kind: "page", page: sheet.from }) : m.closeSheet());
+  // After the "forgot to click finish?" check, a big task gets its look-back questions.
+  const back = () =>
+    sheet.kind === "fixtime"
+      ? m.openSheet({ kind: "page", page: sheet.from })
+      : isBig(t)
+        ? m.openSheet({ kind: "review", id: t.id })
+        : m.closeSheet();
 
   return (
     <BottomSheet title={sheet.kind === "timecheck" ? "Did you forget to click finish?" : `Time it took`}>
