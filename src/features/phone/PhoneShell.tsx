@@ -14,6 +14,7 @@ import { GoogleRuntime } from "@/features/calendar/GoogleSync";
 import { useHydrated } from "@/state/hooks";
 import { Toaster } from "@/ui/toast";
 import { PhoneHome } from "./PhoneHome";
+import { PhoneMe } from "./PhoneMe";
 import { PhoneSchedule } from "./PhoneSchedule";
 import { PhoneWindows } from "./PhoneWindows";
 import { usePhoneUi, type PhoneTab } from "./phoneUi";
@@ -101,7 +102,7 @@ function Tabs({ mode }: { mode: ModeId; children: ReactNode }) {
         ) : tab === "schedule" ? (
           <PhoneSchedule mode={mode} />
         ) : (
-          <MeLinks />
+          <PhoneMe />
         )}
       </div>
 
@@ -174,37 +175,5 @@ function SubPage({ title, children }: { title: string; children: ReactNode }) {
         <div className={s.page}>{children}</div>
       </div>
     </>
-  );
-}
-
-/** Until the phone Me page is built: its sections, one tap away. */
-function MeLinks() {
-  const rows = [
-    { href: "/resources", icon: "📊", label: "Resources", hint: "Charts and everything logged" },
-    { href: "/history", icon: "🕘", label: "History", hint: "Finished tasks · fix times" },
-    { href: "/progress", icon: "📈", label: "Progress and stats", hint: "Stage, guesses, stats cards" },
-    { href: "/settings", icon: "⚙️", label: "Settings", hint: "Medicines, running cap, protected time" },
-  ];
-  return (
-    <div className={s.page}>
-      <ul className={`${s.card} ${s.menu}`}>
-        {rows.map((r) => (
-          <li key={r.href}>
-            <Link href={r.href} className={s.menuRow}>
-              <span className={s.menuIcon} aria-hidden>
-                {r.icon}
-              </span>
-              <span className={s.taskText}>
-                <strong>{r.label}</strong>
-                <span>{r.hint}</span>
-              </span>
-              <span className={s.chevron} aria-hidden>
-                ›
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

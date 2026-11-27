@@ -20,7 +20,11 @@ export type PhoneWindow =
   /** The full new-task form; `start` when a free gap was tapped. */
   | { kind: "add"; start?: string }
   /** One AI feature, in its own window. */
-  | { kind: "ai"; feature: "order" | "schedule" };
+  | { kind: "ai"; feature: "order" | "schedule" }
+  /** Your stage and how close the next one is, from Me. */
+  | { kind: "stage" }
+  /** Daily medicine schedules, from Me. */
+  | { kind: "meds" };
 
 interface PhoneUi {
   tab: PhoneTab;

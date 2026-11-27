@@ -44,6 +44,8 @@ export function Toaster({ bottom = "24px" }: { bottom?: string }) {
         bottom,
         transform: "translateX(-50%)",
         zIndex: 1000,
+        // Centred with left: 50%, so size to the message (not half the screen) up to the cap.
+        width: "max-content",
         maxWidth: "min(520px, calc(100vw - 32px))",
         padding: "12px 18px",
         borderRadius: 14,

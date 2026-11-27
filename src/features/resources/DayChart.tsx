@@ -7,11 +7,11 @@ import s from "./resources.module.css";
 
 export const RESOURCE_LABEL: Record<ResourceKey, string> = { focus: "Focus", energy: "Energy", hydration: "Hydration" };
 
-const W = 720;
-const H = 260;
-const PAD = { left: 34, right: 78, top: 16, bottom: 26 };
-const PLOT_W = W - PAD.left - PAD.right;
-const PLOT_H = H - PAD.top - PAD.bottom;
+/** Wide for the desktop; narrow (no end labels, the legend names the lines) for the phone. */
+const SIZES = {
+  wide: { W: 720, H: 260, PAD: { left: 34, right: 78, top: 16, bottom: 26 } },
+  narrow: { W: 340, H: 190, PAD: { left: 40, right: 18, top: 16, bottom: 22 } },
+};
 const DAY_MS = 24 * 3_600_000;
 
 /**
@@ -19,8 +19,21 @@ const DAY_MS = 24 * 3_600_000;
  * Solid up to now, dashed after (what today's logged items will still do).
  * Hover or drag for exact values; direct labels sit at each line's end.
  */
-export function DayChart({ series, dayStart, now }: { series: SeriesPoint[]; dayStart: number; now: number }) {
+export function DayChart({
+  series,
+  dayStart,
+  now,
+  narrow,
+}: {
+  series: SeriesPoint[];
+  dayStart: number;
+  now: number;
+  narrow?: boolean;
+}) {
   const [hover, setHover] = useState<number | null>(null);
+  const { W, H, PAD } = SIZES[narrow ? "narrow" : "wide"];
+  const PLOT_W = W - PAD.left - PAD.right;
+  const PLOT_H = H - PAD.top - PAD.bottom;
   const x = (t: number) => PAD.left + ((t - dayStart) / DAY_MS) * PLOT_W;
   const y = (v: number) => PAD.top + (1 - v / 100) * PLOT_H;
   const nowInDay = now >= dayStart && now <= dayStart + DAY_MS;
@@ -79,7 +92,7 @@ export function DayChart({ series, dayStart, now }: { series: SeriesPoint[]; day
           </g>
         ))}
 
-        {labels.map(({ k, y: ly }) => (
+        {!narrow && labels.map(({ k, y: ly }) => (
           <text key={k} className={s.endLabel} x={PAD.left + PLOT_W + 8} y={ly + 4}>
             {RESOURCE_LABEL[k]} {last[k]}%
           </text>

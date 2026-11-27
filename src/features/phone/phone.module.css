@@ -1851,3 +1851,15 @@ a.menuRow {
   display: grid;
   gap: 12px;
 }
+
+/* ---------- Me ---------- */
+
+.cardLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}

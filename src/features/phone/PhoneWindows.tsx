@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -17,11 +18,13 @@ import { RESOURCE_LABEL } from "@/features/resources/DayChart";
 import { DeadlockPanel, StarvationPanel } from "@/features/tasks/Panels";
 import { TaskComposer } from "@/features/tasks/TaskComposer";
 import { BlockerDialog, EditDialog, StartDialog } from "@/features/tasks/TaskDialogs";
-import { useDeadlocks, useModeTasks, useNow, useStage, useStarved } from "@/state/hooks";
+import { MedsCard } from "@/features/meds/MedsCard";
+import { useDeadlocks, useGate, useModeTasks, useNow, useStage, useStarved } from "@/state/hooks";
 import { useMios } from "@/state/store";
 import { formatTime, PRIORITY_LABEL } from "@/ui/format";
 import { useToast } from "@/ui/toast";
 import { TaskMeta } from "./PhoneHome";
+import { STAGE_ICON } from "./PhoneMe";
 import { usePhoneUi } from "./phoneUi";
 import s from "./phone.module.css";
 
@@ -42,6 +45,10 @@ export function PhoneWindows({ mode }: { mode: ModeId }) {
       return <AddWindow key={w.start ?? "new"} mode={mode} start={w.start} />;
     case "ai":
       return <AiWindow key={w.feature} feature={w.feature} mode={mode} />;
+    case "stage":
+      return <StageSheet />;
+    case "meds":
+      return <MedsWindow />;
   }
 }
 
@@ -404,6 +411,42 @@ function AiWindow({ feature, mode }: { feature: QueueAiFeature; mode: ModeId }) 
       <div className={s.aiWindow}>
         {feature === "order" ? <OrderAnswer ai={ai} onDecided={close} /> : <ScheduleAnswer ai={ai} onDecided={close} />}
       </div>
+    </FullScreen>
+  );
+}
+
+/* ---------- Me ---------- */
+
+function StageSheet() {
+  const now = useNow(60_000);
+  const { stage, policy } = useStage();
+  const gate = useGate(now);
+  const met = gate.signals.filter((x) => x.pass).length;
+  return (
+    <BottomSheet title={`${STAGE_ICON[stage]} ${policy.label} stage`}>
+      <p className={s.lead}>{policy.description}</p>
+      {gate.to && gate.signals.length > 0 && (
+        <div className={s.noticeCard}>
+          <span className={s.muted}>
+            {met} of {gate.signals.length} signals for {gate.to} stage are met.
+          </span>
+          <div className={s.bar}>
+            <span style={{ width: `${Math.round((met / gate.signals.length) * 100)}%` }} />
+          </div>
+        </div>
+      )}
+      <Link href="/progress" className={s.cardLink} onClick={() => usePhoneUi.getState().popped()}>
+        See every signal in Progress ›
+      </Link>
+    </BottomSheet>
+  );
+}
+
+function MedsWindow() {
+  const now = useNow(60_000);
+  return (
+    <FullScreen title="Medicines">
+      <MedsCard now={Date.parse(now)} />
     </FullScreen>
   );
 }
